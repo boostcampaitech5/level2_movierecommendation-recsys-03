@@ -1,6 +1,6 @@
 ---
 name: chore
-about: '기능 추가를 제외한 기타 항목에 대한 수정을 할 때 사용한다. '
+about: '기능 추가를 제외한 기타 항목을 수정할 때 사용한다. '
 title: ""
 labels: ''
 assignees: ''
