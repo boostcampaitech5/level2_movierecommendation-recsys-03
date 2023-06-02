@@ -1,0 +1,14 @@
+# todo: fill
+data_name: Ml
+
+# batch size of DataLoader
+batch_size: 256
+
+# pretrain batch size of DataLoader
+pre_batch_size: 512
+
+# max sequence length
+max_seq_length: 50
+
+# todo: fill
+mask_p: 0.2
