@@ -15,3 +15,6 @@ key
 
 # environment
 *.env
+
+# hydra outputs
+/outputs
