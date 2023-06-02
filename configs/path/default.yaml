@@ -1,0 +1,4 @@
+# path to data directory
+data_dir: data/train/
+# path to output directory
+output_dir: output/
