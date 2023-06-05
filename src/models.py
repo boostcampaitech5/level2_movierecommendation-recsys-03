@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 import lightning as pl
-from configs.config import config
+from configs.config import Config
 from modules import Encoder, LayerNorm
 
 
 class BaseModule(pl.LightningModule):
-    def __init__(self, config: config):
+    def __init__(self, config: Config):
         super(BaseModule, self).__init__()
         self.config = config
         # cant find in config
