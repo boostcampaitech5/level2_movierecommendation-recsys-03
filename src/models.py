@@ -45,7 +45,7 @@ class BaseModule(pl.LightningModule):
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
-    def add_position_embedding(self, sequence):
+    def make_sequence_embedding(self, sequence):
         seq_length = sequence.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=sequence.device)
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
