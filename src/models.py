@@ -1,19 +1,20 @@
 import torch
 import torch.nn as nn
 import lightning as pl
-from omegaconf import DictConfig
+from configs.config import config
 from modules import Encoder, LayerNorm
 
 
 class BaseModule(pl.LightningModule):
-    def __init__(self, config: DictConfig):
+    def __init__(self, config: config):
         super(BaseModule, self).__init__()
         self.config = config
-        self.item_size = self.config
-        self.hidden_size = self.config
-        self.max_seq_length = self.config
-        self.hidden_dropout_prob = self.config
-        self.initializer_range = self.config
+        # cant find in config
+        self.item_size = self.config.model.item_size
+        self.hidden_size = self.config.model.hidden_size
+        self.hidden_dropout_prob = self.config.model.hidden_dropout_prob
+        self.initializer_range = self.config.model.initializer_range
+        self.max_seq_length = self.config.data.max_seq_length
 
         self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)
         self.attribute_embeddings = nn.Embedding(self.attribute_size, self.hidden_size, padding_idx=0)

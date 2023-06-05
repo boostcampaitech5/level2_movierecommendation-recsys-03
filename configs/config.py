@@ -56,3 +56,4 @@ class S3Rec(Model):
     hidden_act: str
     attention_probs_dropout_prob: float
     hidden_dropout_prob: float
+    item_size: int
