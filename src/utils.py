@@ -6,6 +6,7 @@ import random
 import numpy as np
 import pandas as pd
 import torch
+from datetime import datetime
 from scipy.sparse import csr_matrix
 
 
@@ -21,10 +22,9 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
-def check_path(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-        print(f"{path} created")
+def get_timestamp(date_format: str = "%d_%H%M%S") -> str:
+    timestamp = datetime.now()
+    return timestamp.strftime(date_format)
 
 
 def neg_sample(item_set: set, item_size):
