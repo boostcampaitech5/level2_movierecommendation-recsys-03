@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 from datetime import datetime
 from scipy.sparse import csr_matrix
+from src.config import Config
 
 
 def set_seed(seed):
@@ -109,21 +110,26 @@ def generate_rating_matrix_submission(user_seq, num_users, num_items):
     return rating_matrix
 
 
-def generate_submission_file(data_file, preds):
-    rating_df = pd.read_csv(data_file)
-    users = rating_df["user"].unique()
+def generate_submission_file(config: Config, preds):
+    sample_sub_path = os.path.join(config.path.eval_dir, config.path.eval_file)
 
-    result = []
+    check_dir(config.path.output_dir)
 
-    for index, items in enumerate(preds):
-        for item in items:
-            result.append((users[index], item))
+    sub_path = os.path.join(config.path.output_dir, f"{config.timestamp}_{config.model.model_name}_submit.csv")
 
-    pd.DataFrame(result, columns=["user", "item"]).to_csv("output/submission.csv", index=False)
+    sub_df = pd.read_csv(sample_sub_path)
+
+    items = np.array(preds)
+    items = items.reshape(-1)
+
+    sub_df.loc[:, "item"] = items
+    sub_df.to_csv(sub_path, index=False)
 
 
-def get_user_seqs(data_file):
-    rating_df = pd.read_csv(data_file)
+def get_user_seqs(train_dir, train_file):
+    data_path = os.path.join(train_dir, train_file)
+
+    rating_df = pd.read_csv(data_path)
     lines = rating_df.groupby("user")["item"].apply(list)
     user_seq = []
     item_set = set()
@@ -148,8 +154,10 @@ def get_user_seqs(data_file):
     )
 
 
-def get_user_seqs_long(data_file):
-    rating_df = pd.read_csv(data_file)
+def get_user_seqs_long(train_dir, train_file):
+    data_path = os.path.join(train_dir, train_file)
+
+    rating_df = pd.read_csv(data_path)
     lines = rating_df.groupby("user")["item"].apply(list)
     user_seq = []
     long_seq = []
@@ -164,8 +172,12 @@ def get_user_seqs_long(data_file):
     return user_seq, max_item, long_seq
 
 
-def get_item2attr_json(data_file):
-    item2attr = json.loads(open(data_file).readline())
+def get_item2attr_json(train_dir, train_file):
+    data_path = os.path.join(train_dir, train_file)
+
+    with open(data_path) as f:
+        item2attr = json.loads(f.readline())
+
     attr_set = set()
     for item, attrs in item2attr.items():
         attr_set = attr_set | set(attrs)
