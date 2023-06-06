@@ -42,6 +42,14 @@ class Trainer:
 @dataclass
 class Model:
     model_name: str
+    hidden_size: int
+    num_hidden_layers: int
+    initializer_range: float
+    num_attention_heads: int
+    hidden_act: str
+    attention_probs_dropout_prob: float
+    hidden_dropout_prob: float
+    item_size: int
 
 
 @dataclass
@@ -54,15 +62,3 @@ class Config:
     path: Path
     trainer: Trainer
     model: Model
-
-
-@dataclass
-class S3Rec(Model):
-    hidden_size: int
-    num_hidden_layers: int
-    initializer_range: float
-    num_attention_heads: int
-    hidden_act: str
-    attention_probs_dropout_prob: float
-    hidden_dropout_prob: float
-    item_size: int
