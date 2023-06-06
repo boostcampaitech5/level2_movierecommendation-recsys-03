@@ -2,12 +2,10 @@ seed: 42
 gpu_id: 0
 no_cuda: true
 
-# reserved keys (don't modify!)
-cuda_condition:
-
 defaults:
   - _self_
   - data: default.yaml
   - path: default.yaml
   - trainer: default.yaml
   - model: S3Rec.yaml
+

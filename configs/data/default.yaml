@@ -12,9 +12,3 @@ max_seq_length: 50
 
 # todo: fill
 mask_p: 0.2
-
-# reserved keys (don't modify!)
-item_size: 
-mask_id: 
-attr_size: 
-item2attr: 
