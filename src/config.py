@@ -54,6 +54,7 @@ class Model:
 
 @dataclass
 class Config:
+    timestamp: str
     seed: int
     gpu_id: int
     no_cuda: bool
