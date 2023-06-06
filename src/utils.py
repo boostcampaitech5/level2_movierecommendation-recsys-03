@@ -27,6 +27,12 @@ def get_timestamp(date_format: str = "%d_%H%M%S") -> str:
     return timestamp.strftime(date_format)
 
 
+def check_dir(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        print(f"{dir} created")
+
+
 def neg_sample(item_set: set, item_size):
     neg_items = set(x for x in range(1, item_size)) - item_set
     return random.choice(neg_items)
