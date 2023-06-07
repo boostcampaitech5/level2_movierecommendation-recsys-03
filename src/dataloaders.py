@@ -17,8 +17,13 @@ class S3RecDataModule(L.LightningDataModule):
 
     def prepare_data(self) -> None:
         # concat all user_seq get a long sequence, from which sample neg segment for SP
-        self.user_seq, self.max_item, self.long_seq = get_user_seqs_long(self.config.path.data_dir)
-        self.item2attr, self.attr_size = get_item2attr_json(self.item2attr_file)
+        self.user_seq, max_item, self.long_seq = get_user_seqs_long(self.config.path.train_dir, self.config.path.train_file)
+        item2attr, attr_size = get_item2attr_json(self.item2attr_file)
+
+        self.config.data.item_size = max_item + 2
+        self.config.data.mask_id = max_item + 1
+        self.config.data.attr_size = attr_size + 1
+        self.config.data.item2attr = item2attr
 
     def train_dataloader(self) -> DataLoader:
         trainset = S3RecDataset(self.config, self.user_seq, self.long_seq)

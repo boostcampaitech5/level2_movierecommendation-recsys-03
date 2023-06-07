@@ -12,6 +12,10 @@ class S3RecDataset(Dataset):
         self.user_seq = user_seq
         self.long_seq = long_seq
         self.max_len = config.data.max_seq_length
+        self.mask_id = config.data.mask_id
+        self.item_size = config.data.item_size
+        self.attr_size = config.data.attr_size
+        self.item2attr = config.data.item2attr
         self.part_seq = []
         self.split_seq()
 
@@ -34,15 +38,15 @@ class S3RecDataset(Dataset):
         for item in seq[:-1]:
             prob = random.random()
             if prob < self.config.data.mask_p:
-                masked_item_seq.append(self.config.mask_id)
-                neg_items.append(neg_sample(item_set, self.args.item_size))
+                masked_item_seq.append(self.mask_id)
+                neg_items.append(neg_sample(item_set, self.item_size))
             else:
                 masked_item_seq.append(item)
                 neg_items.append(item)
 
         # add mask at the last position
-        masked_item_seq.append(self.args.mask_id)
-        neg_items.append(neg_sample(item_set, self.args.item_size))
+        masked_item_seq.append(self.mask_id)
+        neg_items.append(neg_sample(item_set, self.item_size))
 
         # Segment Prediction
         if len(seq) < 2:
@@ -55,9 +59,9 @@ class S3RecDataset(Dataset):
             neg_start_id = random.randint(0, len(self.long_seq) - sample_length)
             pos_segment = seq[start_id : start_id + sample_length]
             neg_segment = self.long_seq[neg_start_id : neg_start_id + sample_length]
-            masked_segment_seq = seq[:start_id] + [self.args.mask_id] * sample_length + seq[start_id + sample_length :]
-            pos_segment = [self.args.mask_id] * start_id + pos_segment + [self.args.mask_id] * (len(seq) - (start_id + sample_length))
-            neg_segment = [self.args.mask_id] * start_id + neg_segment + [self.args.mask_id] * (len(seq) - (start_id + sample_length))
+            masked_segment_seq = seq[:start_id] + [self.mask_id] * sample_length + seq[start_id + sample_length :]
+            pos_segment = [self.mask_id] * start_id + pos_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
+            neg_segment = [self.mask_id] * start_id + neg_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
 
         assert len(masked_segment_seq) == len(seq)
         assert len(pos_segment) == len(seq)
@@ -84,9 +88,9 @@ class S3RecDataset(Dataset):
         # Masked Attribute Prediction
         attrs = []
         for item in pos_items:
-            attr = [0] * self.args.attribute_size
+            attr = [0] * self.attr_size
             try:
-                now_attribute = self.args.item2attribute[str(item)]
+                now_attribute = self.item2attr[str(item)]
                 for a in now_attribute:
                     attr[a] = 1
             except:
