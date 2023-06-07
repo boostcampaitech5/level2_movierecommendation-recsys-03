@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Data:
-    data_name: str
+    data_version: str
     batch_size: int
     pre_batch_size: int
     max_seq_length: int

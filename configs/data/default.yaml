@@ -1,5 +1,5 @@
-# todo: fill
-data_name: Ml
+# data version
+data_version: Ml
 
 # batch size of DataLoader
 batch_size: 256
