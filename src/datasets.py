@@ -111,3 +111,64 @@ class PretrainDataset(Dataset):
             torch.tensor(neg_segment, dtype=torch.long),
         )
         return cur_tensors
+
+
+class SASRecDataset(Dataset):
+    def __init__(self, config: Config, data: dict, user_seq: list, test_neg_items=None):
+        self.config = config
+        self.user_seq = user_seq
+        self.data = data
+        self.test_neg_items = test_neg_items
+        self.max_len = self.config.data.max_seq_length
+
+    def __getitem__(self, index):
+        user_id = index
+        items = self.user_seq[index]
+        input_ids = self.data["input_ids"][index]
+        target_pos = self.data["target_pos"][index]
+        answer = self.data["answer"][index]
+
+        target_neg = []
+        seq_set = set(items)
+        for _ in input_ids:
+            target_neg.append(neg_sample(seq_set, self.config.data.item_size))
+
+        # padding
+        pad_len = self.max_len - len(input_ids)
+        input_ids = [0] * pad_len + input_ids
+        target_pos = [0] * pad_len + target_pos
+        target_neg = [0] * pad_len + target_neg
+
+        # slicing
+        input_ids = input_ids[-self.max_len :]
+        target_pos = target_pos[-self.max_len :]
+        target_neg = target_neg[-self.max_len :]
+
+        assert len(input_ids) == self.max_len
+        assert len(target_pos) == self.max_len
+        assert len(target_neg) == self.max_len
+
+        if self.test_neg_items is not None:  # remove?
+            test_samples = self.test_neg_items[index]
+
+            cur_tensors = (
+                torch.tensor(user_id, dtype=torch.long),  # user_id for testing [1]
+                torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
+                torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
+                torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
+                torch.tensor(answer, dtype=torch.long),  # answer [1]
+                torch.tensor(test_samples, dtype=torch.long),
+            )
+        else:
+            cur_tensors = (
+                torch.tensor(user_id, dtype=torch.long),  # user_id for testing [1]
+                torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
+                torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
+                torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
+                torch.tensor(answer, dtype=torch.long),  # answer [1]
+            )
+
+        return cur_tensors
+
+    def __len__(self):
+        return len(self.user_seq)

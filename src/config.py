@@ -21,6 +21,7 @@ class Path:
     output_dir: str
     train_file: str
     eval_file: str
+    atrr_file: str
     checkpoint_file: str
 
 
