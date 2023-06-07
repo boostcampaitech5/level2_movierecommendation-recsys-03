@@ -12,8 +12,8 @@ class S3RecDataModule(L.LightningDataModule):
         self.config = config
 
         # data_file = config.path.data_dir + config.path.data_version + '.txt'
-        self.data_file = config.path.data_dir + "train_ratings.csv"
-        self.item2attr_file = config.path.data_dir + config.data.data_version + "_item2attributes.json"
+        self.data_file = config.path.train_dir + config.path.train_file
+        self.item2attr_file = config.path.train_dir + config.data.data_version + "_" + config.path.atrr_file
 
     def prepare_data(self) -> None:
         # concat all user_seq get a long sequence, from which sample neg segment for SP
