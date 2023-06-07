@@ -9,5 +9,7 @@ output_dir: output/
 train_file: train_ratings.csv
 # eval data file name
 eval_file: sample_submission.csv
+# item attributes file name
+atrr_file: _item2attributes.json
 # model checkpoint file name
 checkpoint_file: Pretrain.pt
