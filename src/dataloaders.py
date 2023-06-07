@@ -1,7 +1,7 @@
 import lightning as L
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
-from src.utils import get_user_seqs_long, get_item2attr_json
+from src.utils import get_user_seqs, get_user_seqs_long, get_item2attr_json
 from src.datasets import S3RecDataset, SASRecDataset
 
 
@@ -15,9 +15,12 @@ class S3RecDataModule(L.LightningDataModule):
         self.data_file = config.path.train_dir + config.path.train_file
         self.item2attr_file = config.path.train_dir + config.data.data_version + "_" + config.path.atrr_file
 
+        self.train_dir = self.config.path.train_dir
+        self.train_file = self.config.path.train_file
+
     def prepare_data(self) -> None:
         # concat all user_seq get a long sequence, from which sample neg segment for SP
-        self.user_seq, max_item, self.long_seq = get_user_seqs_long(self.config.path.train_dir, self.config.path.train_file)
+        self.user_seq, max_item, self.long_seq = get_user_seqs_long(self.train_dir, self.train_file)
         item2attr, attr_size = get_item2attr_json(self.item2attr_file)
 
         self.config.data.item_size = max_item + 2
@@ -35,7 +38,6 @@ class SASRecDataModule(L.LightningDataModule):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
-        self.data_path = self.config.path.data_dir + self.config.path.data_file
         self.batch_size = self.config.data.batch_size
         self.user_seq = None
         self.max_item = None
@@ -50,9 +52,12 @@ class SASRecDataModule(L.LightningDataModule):
         self.submission_matrix = None
         self.n_user = None  # TODO
 
+        self.train_dir = self.config.path.train_dir
+        self.train_file = self.config.path.train_file
+
     # load and feature_engineering dataset
     def prepare_data(self):
-        self.user_seq, self.max_item, self.valid_matrix, self.test_matrix, self.submission_matrix = get_user_seqs(self.data_path)
+        self.user_seq, self.max_item, self.valid_matrix, self.test_matrix, self.submission_matrix = get_user_seqs(self.train_dir, self.train_file)
         self.config.data.item_size = self.max_item + 2
         self.config.data.mask_id = self.max_item + 1
 
