@@ -1,8 +1,10 @@
 import hydra
-from configs.config import Config
+from src.config import Config
+from src.utils import get_timestamp
 
 
 def main(config: Config = None) -> None:
+    config.timestamp = get_timestamp()
     pass
 
 
