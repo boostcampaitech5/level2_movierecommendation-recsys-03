@@ -6,7 +6,7 @@ from src.utils import neg_sample
 from src.config import Config
 
 
-class PretrainDataset(Dataset):
+class S3RecDataset(Dataset):
     def __init__(self, config: Config, user_seq, long_seq):
         self.config = config
         self.user_seq = user_seq

@@ -2,10 +2,10 @@ import lightning as L
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
 from src.utils import get_user_seqs_long, get_item2attr_json
-from src.datasets import PretrainDataset, SASRecDataset
+from src.datasets import S3RecDataset, SASRecDataset
 
 
-class PretrainDataModule(L.LightningDataModule):
+class S3RecDataModule(L.LightningDataModule):
     def __init__(self, config: Config) -> None:
         super().__init__()
 
@@ -21,7 +21,7 @@ class PretrainDataModule(L.LightningDataModule):
         self.item2attr, self.attr_size = get_item2attr_json(self.item2attr_file)
 
     def train_dataloader(self) -> DataLoader:
-        trainset = PretrainDataset(self.config, self.user_seq, self.long_seq)
+        trainset = S3RecDataset(self.config, self.user_seq, self.long_seq)
         sampler = RandomSampler(trainset)
         return DataLoader(trainset, sampler=sampler, batch_size=self.config.data.pre_batch_size)
 
