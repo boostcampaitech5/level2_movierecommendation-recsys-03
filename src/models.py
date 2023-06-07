@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import lightning as pl
-from configs.config import Config
-from modules import Encoder, LayerNorm
+from torch.optim import Adam
+from src.config import Config
+from src.modules import Encoder, LayerNorm
+from torch.optim import Optimizer
 
 
 class BaseModule(pl.LightningModule):
@@ -61,24 +63,25 @@ class BaseModule(pl.LightningModule):
         """
         Not essential
         """
-        raise NotImplementedError
+        pass
 
     def configure_optimizers(self):
-        raise NotImplementedError
+        pass
 
     def training_step(self, batch, batch_idx):
-        raise NotImplementedError
+        pass
 
     def on_train_epoch_end(self):
-        raise NotImplementedError
+        pass
 
     def forward(self):
-        raise NotImplementedError
+        pass
 
 
 class S3Rec(BaseModule):
     def __init__(self, config: Config):
         super().__init__(config)
+        self.training_step_outputs = []
 
     # AAP
     def associated_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
@@ -114,7 +117,7 @@ class S3Rec(BaseModule):
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
 
     # SP sample neg segment
-    def segment_prediction(self, context, segment):
+    def segment_prediction(self, context, segment) -> torch.Tensor:
         """
         :param context: [B H]
         :param segment: [B H]
@@ -208,10 +211,20 @@ class S3Rec(BaseModule):
 
         return aap_loss, mip_loss, map_loss, sp_loss
 
-    def training_step(self, batch, batch_idx):
-        aap_score, mip_distance, map_score, sp_distance = self(**batch)  # predict
-        target = batch[""]
+    def configure_optimizers(self) -> Optimizer:
+        betas = (self.config.trainer.adam_beta1, self.config.trainer.adam_beta2)
+        optimizer = Adam(self.parameters(), lr=self.config.trainer.lr, betas=betas, weight_decay=self.config.trainer.weight_decay)
 
+        return optimizer
+
+    def training_step(self, batch, batch_idx) -> torch.Tensor:
+        attrs, masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment = batch
+
+        # get score
+        aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq = self.forward(
+            masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment
+        )
+        # get loss
         aap_loss, mip_loss, map_loss, sp_loss = self.compute_loss(aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq)
 
         joint_loss = (
@@ -221,4 +234,19 @@ class S3Rec(BaseModule):
             + self.config.trainer.sp_weight * sp_loss
         )
 
+        self.training_step_outputs.append({"aap_loss": aap_loss, "mip_loss": mip_loss, "map_loss": map_loss, "sp_loss": sp_loss})
+
         return joint_loss
+
+    def on_train_epoch_end(self) -> None:
+        avg_aap_loss = (torch.stack([x["aap_loss"] for x in self.training_step_outputs]).mean(),)
+        avg_mip_loss = (torch.stack([x["mip_loss"] for x in self.training_step_outputs]).mean(),)
+        avg_map_loss = (torch.stack([x["map_loss"] for x in self.training_step_outputs]).mean(),)
+        avg_sp_loss = torch.stack([x["sp_loss"] for x in self.training_step_outputs]).mean()
+
+        self.log("avg_aap_loss", avg_aap_loss)
+        self.log("avg_mip_loss", avg_mip_loss)
+        self.log("avg_map_loss", avg_map_loss)
+        self.log("avg_sp_loss", avg_sp_loss)
+
+        self.training_step_outputs.clear()
