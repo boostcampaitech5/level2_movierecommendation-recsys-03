@@ -74,10 +74,10 @@ class Embeddings(nn.Module):
 class SelfAttention(nn.Module):
     def __init__(self, config: Config):
         super(SelfAttention, self).__init__()
-        if config.model.hidden_size % self.model.num_attention_heads != 0:
+        if config.model.hidden_size % config.model.num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
-                "heads (%d)" % (config.model.hidden_size, self.model.num_attention_heads)
+                "heads (%d)" % (config.model.hidden_size, config.model.num_attention_heads)
             )
 
         self.hidden_size = config.model.hidden_size
@@ -88,15 +88,15 @@ class SelfAttention(nn.Module):
         self.attention_head_size = int(self.hidden_size / self.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Linear(config.hidden_size, self.all_head_size)
-        self.key = nn.Linear(config.hidden_size, self.all_head_size)
-        self.value = nn.Linear(config.hidden_size, self.all_head_size)
+        self.query = nn.Linear(self.hidden_size, self.all_head_size)
+        self.key = nn.Linear(self.hidden_size, self.all_head_size)
+        self.value = nn.Linear(self.hidden_size, self.all_head_size)
 
-        self.attn_dropout = nn.Dropout(config.attention_probs_dropout_prob)
+        self.attn_dropout = nn.Dropout(self.attention_probs_dropout_prob)
 
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = LayerNorm(config.hidden_size, eps=1e-12)
-        self.out_dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.dense = nn.Linear(self.hidden_size, self.hidden_size)
+        self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
+        self.out_dropout = nn.Dropout(self.hidden_dropout_prob)
 
     def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (
@@ -147,15 +147,16 @@ class Intermediate(nn.Module):
 
         self.hidden_size = config.model.hidden_size
         self.hidden_act = config.model.hidden_act
+        self.hidden_dropout_prob = config.model.hidden_dropout_prob
 
-        self.dense_1 = nn.Linear(config.hidden_size, config.hidden_size * 4)
+        self.dense_1 = nn.Linear(self.hidden_size, self.hidden_size * 4)
         if isinstance(self.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[self.hidden_act]
         else:
             self.intermediate_act_fn = self.hidden_act
 
-        self.dense_2 = nn.Linear(config.hidden_size * 4, config.hidden_size)
-        self.LayerNorm = LayerNorm(config.hidden_size, eps=1e-12)
+        self.dense_2 = nn.Linear(self.hidden_size * 4, self.hidden_size)
+        self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(self.hidden_dropout_prob)
 
     def forward(self, input_tensor):

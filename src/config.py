@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Data:
-    data_name: str
+    data_version: str
     batch_size: int
     pre_batch_size: int
     max_seq_length: int
@@ -21,17 +21,18 @@ class Path:
     output_dir: str
     train_file: str
     eval_file: str
-    atrr_file: str
-    checkpoint_file: str
+    attr_file: str
+    pretrain_file: str
 
 
 @dataclass
 class Trainer:
+    is_pretrain: bool
+    use_pratrain: bool
+    pretrain_version: str
     epoch: int
-    pre_epochs: int
     lr: float
     weight_decay: float
-    log_freq: int
     aap_weight: float
     mip_weight: float
     map_weight: float
