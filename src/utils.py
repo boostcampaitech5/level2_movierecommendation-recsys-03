@@ -35,13 +35,10 @@ def check_dir(dir):
 
 
 def neg_sample(item_set: set, item_size):
-    neg_items = set(x for x in range(1, item_size)) - item_set
-    return random.choice(neg_items)
-
-    # item = random.randint(1, item_size - 1)
-    # while item in item_set:
-    #     item = random.randint(1, item_size - 1)
-    # return item
+    item = random.randint(1, item_size - 1)
+    while item in item_set:
+        item = random.randint(1, item_size - 1)
+    return item
 
 
 def kmax_pooling(x, dim, k):
@@ -172,14 +169,16 @@ def get_user_seqs_long(train_dir, train_file):
     return user_seq, max_item, long_seq
 
 
-def get_item2attr_json(train_dir, train_file):
-    data_path = os.path.join(train_dir, train_file)
+def get_item2attr_json(train_dir, attr_file):
+    data_path = os.path.join(train_dir, attr_file)
 
     with open(data_path) as f:
         item2attr = json.loads(f.readline())
 
+    item2attr = {int(key): value for key, value in item2attr.items()}
+
     attr_set = set()
-    for item, attrs in item2attr.items():
+    for item_id, attrs in item2attr.items():
         attr_set = attr_set | set(attrs)
     attr_size = max(attr_set)
     return item2attr, attr_size

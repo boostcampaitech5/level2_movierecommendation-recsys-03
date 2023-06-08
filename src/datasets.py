@@ -1,4 +1,5 @@
 import random
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -15,7 +16,7 @@ class S3RecDataset(Dataset):
         self.mask_id = config.data.mask_id
         self.item_size = config.data.item_size
         self.attr_size = config.data.attr_size
-        self.item2attr = config.data.item2attr
+        self.item2attr = self.attr_encoding(config.data.item2attr)
         self.part_seq = []
         self.split_seq()
 
@@ -24,6 +25,14 @@ class S3RecDataset(Dataset):
             input_ids = seq[-(self.max_len + 2) : -2]  # keeping same as train set
             for i in range(len(input_ids)):
                 self.part_seq.append(input_ids[: i + 1])
+
+    def attr_encoding(self, item2attr):
+        item2encoded_attr = {}
+        for item_id, attrs in item2attr.items():
+            item2encoded_attr[item_id] = np.zeros((self.attr_size))
+            item2encoded_attr[item_id][attrs] = 1
+            item2encoded_attr[item_id] = item2encoded_attr[item_id].tolist()
+        return item2encoded_attr
 
     def __len__(self):
         return len(self.part_seq)
@@ -88,14 +97,10 @@ class S3RecDataset(Dataset):
         # Masked Attribute Prediction
         attrs = []
         for item in pos_items:
-            attr = [0] * self.attr_size
-            try:
-                now_attribute = self.item2attr[str(item)]
-                for a in now_attribute:
-                    attr[a] = 1
-            except:
-                pass
-            attrs.append(attr)
+            if item in self.item2attr:
+                attrs.append(self.item2attr[item])
+            else:
+                attrs.append([0] * self.attr_size)
 
         assert len(attrs) == self.max_len
         assert len(masked_item_seq) == self.max_len

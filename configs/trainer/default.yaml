@@ -1,17 +1,20 @@
-# epoch for training
-epoch: 200
+# pretrain
+is_pretrain: true
 
-# epoch
-pre_epochs: 300
+# use pretrain
+use_pretrain: true
+
+# pretrain version
+pretrain_version: '1'
+
+# epoch for training
+epoch: 300
 
 # learning rate
 lr: 0.001
 
 # weight_decay for learning rate
 weight_decay: 0.0
-
-# todo: fill
-log_freq: 1
 
 # weight of aap loss
 aap_weight: 0.2
@@ -25,6 +28,6 @@ map_weight: 1.0
 # weight of sp loss
 sp_weight: 0.5
 
-# betas of adam optimizer 
+# betas of adam optimizer
 adam_beta1: 0.9
 adam_beta2: 0.999

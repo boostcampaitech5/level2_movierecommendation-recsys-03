@@ -16,16 +16,17 @@ class BaseModule(L.LightningModule):
         super(BaseModule, self).__init__()
         self.config = config
         # cant find in config
-        self.item_size = self.config.model.item_size
+        self.item_size = self.config.data.item_size
         self.hidden_size = self.config.model.hidden_size
         self.hidden_dropout_prob = self.config.model.hidden_dropout_prob
         self.initializer_range = self.config.model.initializer_range
         self.max_seq_length = self.config.data.max_seq_length
+        self.attr_size = self.config.data.attr_size
 
         self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)
-        self.attribute_embeddings = nn.Embedding(self.attribute_size, self.hidden_size, padding_idx=0)
+        self.attr_embeddings = nn.Embedding(self.attr_size, self.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(self.max_seq_length, self.hidden_size)
-        self.item_encoder = Encoder(self)
+        self.item_encoder = Encoder(self.config)
         self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(self.hidden_dropout_prob)
 
@@ -51,7 +52,7 @@ class BaseModule(L.LightningModule):
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
-    def make_sequence_embedding(self, seq: list):
+    def make_seq_embedding(self, seq: list):
         seq_length = seq.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=seq.device)
         position_ids = position_ids.unsqueeze(0).expand_as(seq)
@@ -87,6 +88,8 @@ class S3Rec(BaseModule):
         super().__init__(config)
         self.training_step_outputs = []
 
+        self.mask_id = config.data.mask_id
+
     # AAP
     def associated_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
         """
@@ -95,7 +98,7 @@ class S3Rec(BaseModule):
         :return: scores [B*L tag_num]
         """
         seq_output = self.aap_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.args.hidden_size, 1])  # [B*L H 1]
+        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
         score = torch.matmul(attr_embedding, seq_output)
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
@@ -107,15 +110,15 @@ class S3Rec(BaseModule):
         :param target_item: [B L H]
         :return: scores [B*L]
         """
-        seq_output = self.mip_norm(seq_output.view([-1, self.args.hidden_size]))  # [B*L H]
-        target_item = target_item.view([-1, self.args.hidden_size])  # [B*L H]
+        seq_output = self.mip_norm(seq_output.view([-1, self.hidden_size]))  # [B*L H]
+        target_item = target_item.view([-1, self.hidden_size])  # [B*L H]
         score = torch.mul(seq_output, target_item)  # [B*L H]
         return torch.sigmoid(torch.sum(score, -1))  # [B*L]
 
     # MAP
     def masked_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
         seq_output = self.map_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.args.hidden_size, 1])  # [B*L H 1]
+        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
         score = torch.matmul(attr_embedding, seq_output)
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
@@ -140,8 +143,8 @@ class S3Rec(BaseModule):
         pos_segment,
         neg_segment,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        # Encode masked sequence
-        seq_emb = self.make_sequence_embedding(masked_item_seq)
+        # Encode masked seq
+        seq_emb = self.make_seq_embedding(masked_item_seq)
         seq_mask = (masked_item_seq == 0).float() * -1e8
         seq_mask = torch.unsqueeze(torch.unsqueeze(seq_mask, 1), 1)
 
@@ -149,7 +152,7 @@ class S3Rec(BaseModule):
         # [B L H]
         seq_output = encoded_layers[-1]
 
-        attr_embeddings = self.attribute_embeddings.weight
+        attr_embeddings = self.attr_embeddings.weight
         # AAP
         aap_score = self.associated_attr_prediction(seq_output, attr_embeddings)
 
@@ -161,11 +164,11 @@ class S3Rec(BaseModule):
         mip_distance = torch.sigmoid(pos_score - neg_score)
 
         # MAP
-        map_score = self.masked_attribute_prediction(seq_output, attr_embeddings)
+        map_score = self.masked_attr_prediction(seq_output, attr_embeddings)
 
         # SP
         # segment context
-        segment_context = self.add_position_embedding(masked_segment_seq)
+        segment_context = self.make_seq_embedding(masked_segment_seq)
         segment_mask = (masked_segment_seq == 0).float() * -1e8
         segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)
         segment_encoded_layers = self.item_encoder(segment_context, segment_mask, output_all_encoded_layers=True)
@@ -173,14 +176,14 @@ class S3Rec(BaseModule):
         # take the last position hidden as the context
         segment_context = segment_encoded_layers[-1][:, -1, :]  # [B H]
         # pos_segment
-        pos_segment_emb = self.add_position_embedding(pos_segment)
+        pos_segment_emb = self.make_seq_embedding(pos_segment)
         pos_segment_mask = (pos_segment == 0).float() * -1e8
         pos_segment_mask = torch.unsqueeze(torch.unsqueeze(pos_segment_mask, 1), 1)
         pos_segment_encoded_layers = self.item_encoder(pos_segment_emb, pos_segment_mask, output_all_encoded_layers=True)
         pos_segment_emb = pos_segment_encoded_layers[-1][:, -1, :]
 
         # neg_segment
-        neg_segment_emb = self.add_position_embedding(neg_segment)
+        neg_segment_emb = self.make_seq_embedding(neg_segment)
         neg_segment_mask = (neg_segment == 0).float() * -1e8
         neg_segment_mask = torch.unsqueeze(torch.unsqueeze(neg_segment_mask, 1), 1)
         neg_segment_encoded_layers = self.item_encoder(neg_segment_emb, neg_segment_mask, output_all_encoded_layers=True)
@@ -195,19 +198,19 @@ class S3Rec(BaseModule):
 
     def compute_loss(self, aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq):
         ## AAP
-        aap_loss = self.criterion(aap_score, attrs.view(-1, self.args.attribute_size).float())
+        aap_loss = self.criterion(aap_score, attrs.view(-1, self.attr_size).float())
         # only compute loss at non-masked position
-        aap_mask = (masked_item_seq != self.args.mask_id).float() * (masked_item_seq != 0).float()
+        aap_mask = (masked_item_seq != self.mask_id).float() * (masked_item_seq != 0).float()
         aap_loss = torch.sum(aap_loss * aap_mask.flatten().unsqueeze(-1))
 
         ## MIP
         mip_loss = self.criterion(mip_distance, torch.ones_like(mip_distance, dtype=torch.float32))
-        mip_mask = (masked_item_seq == self.args.mask_id).float()
+        mip_mask = (masked_item_seq == self.mask_id).float()
         mip_loss = torch.sum(mip_loss * mip_mask.flatten())
 
         ## MAP
-        map_loss = self.criterion(map_score, attrs.view(-1, self.args.attribute_size).float())
-        map_mask = (masked_item_seq == self.args.mask_id).float()
+        map_loss = self.criterion(map_score, attrs.view(-1, self.attr_size).float())
+        map_mask = (masked_item_seq == self.mask_id).float()
         map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))
 
         ## SP
@@ -225,7 +228,7 @@ class S3Rec(BaseModule):
         attrs, masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment = batch
 
         # get score
-        aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq = self.forward(
+        aap_score, mip_distance, map_score, sp_distance = self.forward(
             masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment
         )
         # get loss
@@ -243,9 +246,9 @@ class S3Rec(BaseModule):
         return joint_loss
 
     def on_train_epoch_end(self) -> None:
-        avg_aap_loss = (torch.stack([x["aap_loss"] for x in self.training_step_outputs]).mean(),)
-        avg_mip_loss = (torch.stack([x["mip_loss"] for x in self.training_step_outputs]).mean(),)
-        avg_map_loss = (torch.stack([x["map_loss"] for x in self.training_step_outputs]).mean(),)
+        avg_aap_loss = torch.stack([x["aap_loss"] for x in self.training_step_outputs]).mean()
+        avg_mip_loss = torch.stack([x["mip_loss"] for x in self.training_step_outputs]).mean()
+        avg_map_loss = torch.stack([x["map_loss"] for x in self.training_step_outputs]).mean()
         avg_sp_loss = torch.stack([x["sp_loss"] for x in self.training_step_outputs]).mean()
 
         self.log("avg_aap_loss", avg_aap_loss)
@@ -453,7 +456,7 @@ class SASRec(BaseModule):
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-        seq_emb = self.make_sequence_embedding(input_ids)
+        seq_emb = self.make_seq_embedding(input_ids)
 
         item_encoded_layers = self.item_encoder(seq_emb, extended_attention_mask, output_all_encoded_layers=True)
 

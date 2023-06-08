@@ -11,17 +11,15 @@ class S3RecDataModule(L.LightningDataModule):
 
         self.config = config
 
-        # data_file = config.path.data_dir + config.path.data_version + '.txt'
-        self.data_file = config.path.train_dir + config.path.train_file
-        self.item2attr_file = config.path.train_dir + config.data.data_version + "_" + config.path.atrr_file
+        self.train_dir = config.path.train_dir
+        self.train_file = config.path.train_file
 
-        self.train_dir = self.config.path.train_dir
-        self.train_file = self.config.path.train_file
+        self.attr_file = config.data.data_version + "_" + config.path.attr_file
 
     def prepare_data(self) -> None:
         # concat all user_seq get a long sequence, from which sample neg segment for SP
         self.user_seq, max_item, self.long_seq = get_user_seqs_long(self.train_dir, self.train_file)
-        item2attr, attr_size = get_item2attr_json(self.item2attr_file)
+        item2attr, attr_size = get_item2attr_json(self.train_dir, self.attr_file)
 
         self.config.data.item_size = max_item + 2
         self.config.data.mask_id = max_item + 1
@@ -31,7 +29,7 @@ class S3RecDataModule(L.LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         trainset = S3RecDataset(self.config, self.user_seq, self.long_seq)
         sampler = RandomSampler(trainset)
-        return DataLoader(trainset, sampler=sampler, batch_size=self.config.data.pre_batch_size)
+        return DataLoader(trainset, sampler=sampler, batch_size=self.config.data.pre_batch_size, num_workers=8)
 
 
 class SASRecDataModule(L.LightningDataModule):
@@ -82,19 +80,19 @@ class SASRecDataModule(L.LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         train_dataset = SASRecDataset(config=self.config, data=self.train_data, user_seq=self.user_seq)
         train_sampler = RandomSampler(train_dataset)
-        return DataLoader(train_dataset, sampler=train_sampler, batch_size=self.batch_size)
+        return DataLoader(train_dataset, sampler=train_sampler, batch_size=self.batch_size, num_workers=8)
 
     def val_dataloader(self) -> DataLoader:
         valid_dataset = SASRecDataset(config=self.config, data=self.valid_data, user_seq=self.user_seq)
         valid_sampler = SequentialSampler(valid_dataset)
-        return DataLoader(valid_dataset, sampler=valid_sampler, batch_size=self.batch_size)
+        return DataLoader(valid_dataset, sampler=valid_sampler, batch_size=self.batch_size, num_workers=8)
 
     def test_dataloader(self) -> DataLoader:
         test_dataset = SASRecDataset(config=self.config, data=self.test_data, user_seq=self.user_seq)
         test_sampler = SequentialSampler(test_dataset)
-        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size)
+        return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size, num_workers=8)
 
     def predict_dataloader(self) -> DataLoader:
         submission_dataset = SASRecDataset(config=self.config, data=self.submission_data, user_seq=self.user_seq)
         submission_sampler = SequentialSampler(submission_dataset)
-        return DataLoader(submission_dataset, sampler=submission_sampler, batch_size=self.batch_size)
+        return DataLoader(submission_dataset, sampler=submission_sampler, batch_size=self.batch_size, num_workers=8)
