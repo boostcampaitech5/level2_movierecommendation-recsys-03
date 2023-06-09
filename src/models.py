@@ -8,6 +8,7 @@ from torch.optim import Optimizer
 from torch.optim import Adam
 from scipy.sparse import csr_matrix
 from src.config import Config
+from src.utils import ndcg_k, recall_at_k
 from src import modules
 
 
@@ -239,6 +240,14 @@ class SASRec(L.LightningModule):
 
         return loss
 
+    def get_full_sort_score(self, answers, pred_list):
+        recall, ndcg = [], []
+        for k in [5, 10]:
+            recall.append(recall_at_k(answers, pred_list, k))
+            ndcg.append(ndcg_k(answers, pred_list, k))
+
+        return [recall[0], ndcg[0], recall[1], ndcg[1]]
+
     def configure_optimizers(self):
         betas = (self.config.trainer.adam_beta1, self.config.trainer.adam_beta2)
         return Adam(
@@ -290,7 +299,7 @@ class SASRec(L.LightningModule):
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
     def on_validation_epoch_end(self):
-        metrics = self.sasrec.get_full_sort_score(self.answer_list, self.pred_list)
+        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
         self.log("NDCG@10", metrics[3])
 
         self.pred_list = None
@@ -322,7 +331,7 @@ class SASRec(L.LightningModule):
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
     def on_test_epoch_end(self):
-        metrics = self.sasrec.get_full_sort_score(self.answer_list, self.pred_list)
+        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
         self.log("NDCG@10", metrics[3])
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):

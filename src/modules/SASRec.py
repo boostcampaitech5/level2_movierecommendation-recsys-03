@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from src.config import Config
 from src.modules import Encoder, LayerNorm
-from src.utils import ndcg_k, recall_at_k
 
 
 class SASRec(nn.Module):
@@ -26,14 +25,6 @@ class SASRec(nn.Module):
 
     def load(self, file_name: str) -> None:
         self.load_state_dict(torch.load(file_name))
-
-    def get_full_sort_score(self, answers, pred_list):
-        recall, ndcg = [], []
-        for k in [5, 10]:
-            recall.append(recall_at_k(answers, pred_list, k))
-            ndcg.append(ndcg_k(answers, pred_list, k))
-
-        return [recall[0], ndcg[0], recall[1], ndcg[1]]
 
     def predict_full(self, seq_out):
         # [item_num hidden_size]
