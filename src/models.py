@@ -325,9 +325,6 @@ class SASRec(L.LightningModule):
         metrics = self.sasrec.get_full_sort_score(self.answer_list, self.pred_list)
         self.log("NDCG@10", metrics[3])
 
-        self.pred_list = None
-        self.answer_list = None
-
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         user_ids, input_ids, _, _, answers = batch
         seq_output = self(input_ids)
@@ -346,14 +343,7 @@ class SASRec(L.LightningModule):
 
         batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
-        if self.pred_list is None:
-            self.pred_list = batch_pred_list
-            self.answer_list = answers.cpu().data.numpy()
-        else:
-            self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
-            self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
-
-        return self.pred_list
+        return batch_pred_list
 
     def forward(self, input_ids):
         return self.sasrec.forward(input_ids)
