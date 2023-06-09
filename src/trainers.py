@@ -34,7 +34,7 @@ class HoldoutTrainer:
 
     def predict(self):
         # inference
-        preds = self.trainer.predict(self.model, datamodule=self.data_module)
+        preds = self.trainer.predict(self.model, datamodule=self.data_module)[0]
         generate_submission_file(self.config, preds)
 
     def test(self):
