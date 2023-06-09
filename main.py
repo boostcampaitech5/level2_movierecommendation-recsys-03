@@ -42,6 +42,10 @@ def main(config: Config = None) -> None:
     trainer = get_trainer(config)
     trainer.train()
 
+    if not config.trainer.is_pretrain:
+        trainer.test()
+        trainer.predict()
+
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")
 def main_hydra(config: Config) -> None:
