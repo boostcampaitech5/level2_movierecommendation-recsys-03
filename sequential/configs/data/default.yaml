@@ -1,29 +1,20 @@
-# model name
-model_name: S3Rec
+# data version
+data_version: Ml
 
-# hidden dimension
-hidden_size: 64
+# batch size of DataLoader
+batch_size: 256
 
-# encoder hidden dimension
-num_hidden_layers: 2
+# pretrain batch size of DataLoader
+pre_batch_size: 512
 
-# todo: fill
-initializer_range: 0.02
-
-# todo: fill
-num_attention_heads: 2
+# max sequence length
+max_seq_length: 50
 
 # todo: fill
-hidden_act: gelu
+mask_p: 0.2
 
-# todo: fill
-attention_probs_dropout_prob: 0.5
-
-# todo: fill
-hidden_dropout_prob: 0.5
-
-# todo: fill
-item_size: 11
-
-#Finetune_full
-#Pretrain
+# reserved keys (don't modify!)
+item_size: 
+mask_id: 
+attr_size: 
+item2attr: 
