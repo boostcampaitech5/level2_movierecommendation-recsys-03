@@ -22,8 +22,7 @@ class SASRec(nn.Module):
         self.dropout = nn.Dropout(self.hidden_dropout_prob)
 
     def save(self, file_name: str) -> None:
-        torch.save(self.model.cpu().state_dict(), file_name)
-        self.model.to(self.device)
+        torch.save(self.state_dict(), file_name)
 
     def load(self, file_name: str) -> None:
         self.load_state_dict(torch.load(file_name))
