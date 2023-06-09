@@ -8,14 +8,14 @@ from torch.optim import Optimizer
 from torch.optim import Adam
 from scipy.sparse import csr_matrix
 from src.config import Config
-from src.modules import SASRecModule
+from src import modules
 
 
 class S3Rec(L.LightningModule):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
-        self.sasrec = SASRecModule(config)
+        self.sasrec = modules.SASRec(config)
         self.mask_id = config.data.mask_id
         self.attr_size = self.config.data.attr_size
         self.training_step_outputs = []
@@ -206,7 +206,7 @@ class SASRec(L.LightningModule):
     def __init__(self, config: Config, valid_matrix: csr_matrix, test_matrix: csr_matrix, submission_matrix: csr_matrix) -> None:
         super().__init__()
         self.config = config
-        self.sasrec = SASRecModule(config)
+        self.sasrec = modules.SASRec(config)
         self.pred_list = None
         self.answer_list = None
         self.rec_avg_loss = 0.0

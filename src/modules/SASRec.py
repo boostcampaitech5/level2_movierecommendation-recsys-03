@@ -5,7 +5,7 @@ from src.modules import Encoder, LayerNorm
 from src.utils import ndcg_k, recall_at_k
 
 
-class SASRecModule(nn.Module):
+class SASRec(nn.Module):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
