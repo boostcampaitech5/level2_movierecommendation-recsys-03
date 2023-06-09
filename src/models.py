@@ -1,3 +1,4 @@
+from typing import Any, Dict
 import torch
 import torch.nn as nn
 import numpy as np
@@ -199,6 +200,9 @@ class S3Rec(L.LightningModule):
 
         self.training_step_outputs.clear()
 
+    def save_pretrained_module(self, path) -> None:
+        self.sasrec.save(path)
+
 
 ## sasrec for finetune
 class SASRec(L.LightningModule):
@@ -353,3 +357,6 @@ class SASRec(L.LightningModule):
 
     def forward(self, input_ids):
         return self.sasrec.forward(input_ids)
+
+    def load_pretrained_module(self, path) -> None:
+        self.sasrec.load(path)
