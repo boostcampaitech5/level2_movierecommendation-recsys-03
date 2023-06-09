@@ -268,7 +268,7 @@ class SASRec(L.LightningModule):
         user_ids, input_ids, _, _, answers = batch
         seq_output = self(input_ids)
         seq_output = seq_output[:, -1, :]
-        rating_pred = self.predict_full(seq_output)
+        rating_pred = self.sasrec.predict_full(seq_output)
 
         rating_pred = rating_pred.cpu().data.numpy().copy()
         batch_user_index = user_ids.cpu().numpy()
