@@ -258,7 +258,7 @@ class SASRec(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self):
-        rec_avg_loss = torch.stack([x["rec_avg_loss"] for x in self.sasrec.training_step_outputs]).mean()
+        rec_avg_loss = torch.stack([x["rec_avg_loss"] for x in self.training_step_outputs]).mean()
         self.log("rec_avg_loss", rec_avg_loss)
         self.log("rec_cur_loss", self.training_step_outputs[-1]["rec_avg_loss"])
 
@@ -290,7 +290,7 @@ class SASRec(L.LightningModule):
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
     def on_validation_epoch_end(self):
-        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        metrics = self.sasrec.get_full_sort_score(self.answer_list, self.pred_list)
         self.log("NDCG@10", metrics[3])
 
         self.pred_list = None
@@ -300,7 +300,7 @@ class SASRec(L.LightningModule):
         user_ids, input_ids, _, _, answers = batch
         seq_output = self(input_ids)
         seq_output = seq_output[:, -1, :]
-        rating_pred = self.predict_full(seq_output)
+        rating_pred = self.sasrec.predict_full(seq_output)
 
         rating_pred = rating_pred.cpu().data.numpy().copy()
         batch_user_index = user_ids.cpu().numpy()
@@ -322,7 +322,7 @@ class SASRec(L.LightningModule):
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
     def on_test_epoch_end(self):
-        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        metrics = self.sasrec.get_full_sort_score(self.answer_list, self.pred_list)
         self.log("NDCG@10", metrics[3])
 
         self.pred_list = None
@@ -332,7 +332,7 @@ class SASRec(L.LightningModule):
         user_ids, input_ids, _, _, answers = batch
         seq_output = self(input_ids)
         seq_output = seq_output[:, -1, :]
-        rating_pred = self.predict_full(seq_output)
+        rating_pred = self.sasrec.predict_full(seq_output)
 
         rating_pred = rating_pred.cpu().data.numpy().copy()
         batch_user_index = user_ids.cpu().numpy()
