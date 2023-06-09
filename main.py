@@ -21,14 +21,14 @@ def get_trainer(config: Config):
         datamodule.prepare_data()
         model = SASRec(config, datamodule.valid_matrix, datamodule.test_matrix, datamodule.submission_matrix)
 
-        if config.trainer.use_pratrain:
-            pretrain_checkpoint_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file
+        if config.trainer.use_pretrain:
+            pretrain_checkpoint_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".ckpt"
             pretrain_checkpoint_path = os.path.join(config.path.output_dir, pretrain_checkpoint_file)
             model.load(pretrain_checkpoint_path)
 
         checkpoint_file = f"{config.timestamp}_{config.model.model_name}"
 
-        return HoldoutTrainer(config, model=model, data_module=datamodule, metric="", checkpoint_file=checkpoint_file, mode="max")
+        return HoldoutTrainer(config, model=model, data_module=datamodule, metric="NDCG@10", checkpoint_file=checkpoint_file, mode="max")
 
 
 def main(config: Config = None) -> None:

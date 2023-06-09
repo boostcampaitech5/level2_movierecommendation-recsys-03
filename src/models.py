@@ -1,3 +1,4 @@
+from typing import Any
 import torch
 import torch.nn as nn
 import numpy as np
@@ -11,32 +12,43 @@ from src.modules import Encoder, LayerNorm
 from src.utils import ndcg_k, recall_at_k
 
 
-class BaseModule(L.LightningModule):
+class SASRecModule(nn.Module):
     def __init__(self, config: Config):
-        super(BaseModule, self).__init__()
+        super().__init__()
         self.config = config
-        # cant find in config
         self.item_size = self.config.data.item_size
         self.hidden_size = self.config.model.hidden_size
         self.hidden_dropout_prob = self.config.model.hidden_dropout_prob
         self.initializer_range = self.config.model.initializer_range
         self.max_seq_length = self.config.data.max_seq_length
-        self.attr_size = self.config.data.attr_size
 
         self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)
-        self.attr_embeddings = nn.Embedding(self.attr_size, self.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(self.max_seq_length, self.hidden_size)
         self.item_encoder = Encoder(self.config)
         self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(self.hidden_dropout_prob)
 
-        # add unique dense layer for 4 losses respectively
-        self.aap_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.mip_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.map_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.sp_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.criterion = nn.BCELoss(reduction="none")
-        self.apply(self.init_weights)
+    def save(self, file_name: str) -> None:
+        torch.save(self.model.cpu().state_dict(), file_name)
+        self.model.to(self.device)
+
+    def load(self, file_name: str) -> None:
+        self.load_state_dict(torch.load(file_name))
+
+    def get_full_sort_score(self, answers, pred_list):
+        recall, ndcg = [], []
+        for k in [5, 10]:
+            recall.append(recall_at_k(answers, pred_list, k))
+            ndcg.append(ndcg_k(answers, pred_list, k))
+
+        return [recall[0], ndcg[0], recall[1], ndcg[1]]
+
+    def predict_full(self, seq_out):
+        # [item_num hidden_size]
+        test_item_emb = self.item_embeddings.weight
+        # [batch hidden_size ]
+        rating_pred = torch.matmul(seq_out, test_item_emb.transpose(0, 1))
+        return rating_pred
 
     def init_weights(self, module):
         """
@@ -64,31 +76,48 @@ class BaseModule(L.LightningModule):
 
         return seq_emb
 
-    def compute_loss(self):
-        """
-        Not essential
-        """
-        pass
+    def forward(self, input_ids):
+        attention_mask = (input_ids > 0).long()
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64
+        max_len = attention_mask.size(-1)
+        attn_shape = (1, max_len, max_len)
+        subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1)  # torch.uint8
+        subsequent_mask = (subsequent_mask == 0).unsqueeze(1)
+        subsequent_mask = subsequent_mask.long()
 
-    def configure_optimizers(self):
-        pass
+        if self.config.cuda_condition:
+            subsequent_mask = subsequent_mask.cuda()
 
-    def training_step(self, batch, batch_idx):
-        pass
+        extended_attention_mask = extended_attention_mask * subsequent_mask
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-    def on_train_epoch_end(self):
-        pass
+        seq_emb = self.make_seq_embedding(input_ids)
 
-    def forward(self):
-        pass
+        item_encoded_layers = self.item_encoder(seq_emb, extended_attention_mask, output_all_encoded_layers=True)
+
+        seq_output = item_encoded_layers[-1]
+        return seq_output
 
 
-class S3Rec(BaseModule):
+class S3Rec(L.LightningModule):
     def __init__(self, config: Config):
-        super().__init__(config)
+        super().__init__()
+        self.config = config
+        self.sasrec = SASRecModule(config)
+        self.mask_id = config.data.mask_id
+        self.attr_size = self.config.data.attr_size
         self.training_step_outputs = []
 
-        self.mask_id = config.data.mask_id
+        self.attr_embeddings = nn.Embedding(self.attr_size, self.sasrec.hidden_size, padding_idx=0)
+
+        # add unique dense layer for 4 losses respectively
+        self.aap_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
+        self.mip_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
+        self.map_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
+        self.sp_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
+        self.criterion = nn.BCELoss(reduction="none")
+        self.apply(self.sasrec.init_weights)
 
     # AAP
     def associated_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
@@ -98,7 +127,7 @@ class S3Rec(BaseModule):
         :return: scores [B*L tag_num]
         """
         seq_output = self.aap_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
+        seq_output = seq_output.view([-1, self.sasrec.hidden_size, 1])  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
         score = torch.matmul(attr_embedding, seq_output)
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
@@ -110,15 +139,15 @@ class S3Rec(BaseModule):
         :param target_item: [B L H]
         :return: scores [B*L]
         """
-        seq_output = self.mip_norm(seq_output.view([-1, self.hidden_size]))  # [B*L H]
-        target_item = target_item.view([-1, self.hidden_size])  # [B*L H]
+        seq_output = self.mip_norm(seq_output.view([-1, self.sasrec.hidden_size]))  # [B*L H]
+        target_item = target_item.view([-1, self.sasrec.hidden_size])  # [B*L H]
         score = torch.mul(seq_output, target_item)  # [B*L H]
         return torch.sigmoid(torch.sum(score, -1))  # [B*L]
 
     # MAP
     def masked_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
         seq_output = self.map_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
+        seq_output = seq_output.view([-1, self.sasrec.hidden_size, 1])  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
         score = torch.matmul(attr_embedding, seq_output)
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
@@ -144,11 +173,11 @@ class S3Rec(BaseModule):
         neg_segment,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Encode masked seq
-        seq_emb = self.make_seq_embedding(masked_item_seq)
+        seq_emb = self.sasrec.make_seq_embedding(masked_item_seq)
         seq_mask = (masked_item_seq == 0).float() * -1e8
         seq_mask = torch.unsqueeze(torch.unsqueeze(seq_mask, 1), 1)
 
-        encoded_layers = self.item_encoder(seq_emb, seq_mask, output_all_encoded_layers=True)
+        encoded_layers = self.sasrec.item_encoder(seq_emb, seq_mask, output_all_encoded_layers=True)
         # [B L H]
         seq_output = encoded_layers[-1]
 
@@ -157,8 +186,8 @@ class S3Rec(BaseModule):
         aap_score = self.associated_attr_prediction(seq_output, attr_embeddings)
 
         # MIP
-        pos_item_embs = self.item_embeddings(pos_items)
-        neg_item_embs = self.item_embeddings(neg_items)
+        pos_item_embs = self.sasrec.item_embeddings(pos_items)
+        neg_item_embs = self.sasrec.item_embeddings(neg_items)
         pos_score = self.masked_item_prediction(seq_output, pos_item_embs)
         neg_score = self.masked_item_prediction(seq_output, neg_item_embs)
         mip_distance = torch.sigmoid(pos_score - neg_score)
@@ -168,25 +197,25 @@ class S3Rec(BaseModule):
 
         # SP
         # segment context
-        segment_context = self.make_seq_embedding(masked_segment_seq)
+        segment_context = self.sasrec.make_seq_embedding(masked_segment_seq)
         segment_mask = (masked_segment_seq == 0).float() * -1e8
         segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)
-        segment_encoded_layers = self.item_encoder(segment_context, segment_mask, output_all_encoded_layers=True)
+        segment_encoded_layers = self.sasrec.item_encoder(segment_context, segment_mask, output_all_encoded_layers=True)
 
         # take the last position hidden as the context
         segment_context = segment_encoded_layers[-1][:, -1, :]  # [B H]
         # pos_segment
-        pos_segment_emb = self.make_seq_embedding(pos_segment)
+        pos_segment_emb = self.sasrec.make_seq_embedding(pos_segment)
         pos_segment_mask = (pos_segment == 0).float() * -1e8
         pos_segment_mask = torch.unsqueeze(torch.unsqueeze(pos_segment_mask, 1), 1)
-        pos_segment_encoded_layers = self.item_encoder(pos_segment_emb, pos_segment_mask, output_all_encoded_layers=True)
+        pos_segment_encoded_layers = self.sasrec.item_encoder(pos_segment_emb, pos_segment_mask, output_all_encoded_layers=True)
         pos_segment_emb = pos_segment_encoded_layers[-1][:, -1, :]
 
         # neg_segment
-        neg_segment_emb = self.make_seq_embedding(neg_segment)
+        neg_segment_emb = self.sasrec.make_seq_embedding(neg_segment)
         neg_segment_mask = (neg_segment == 0).float() * -1e8
         neg_segment_mask = torch.unsqueeze(torch.unsqueeze(neg_segment_mask, 1), 1)
-        neg_segment_encoded_layers = self.item_encoder(neg_segment_emb, neg_segment_mask, output_all_encoded_layers=True)
+        neg_segment_encoded_layers = self.sasrec.item_encoder(neg_segment_emb, neg_segment_mask, output_all_encoded_layers=True)
         neg_segment_emb = neg_segment_encoded_layers[-1][:, -1, :]  # [B H]
 
         pos_segment_score = self.segment_prediction(segment_context, pos_segment_emb)
@@ -241,7 +270,9 @@ class S3Rec(BaseModule):
             + self.config.trainer.sp_weight * sp_loss
         )
 
-        self.training_step_outputs.append({"aap_loss": aap_loss, "mip_loss": mip_loss, "map_loss": map_loss, "sp_loss": sp_loss})
+        self.training_step_outputs.append(
+            {"aap_loss": aap_loss.detach(), "mip_loss": mip_loss.detach(), "map_loss": map_loss.detach(), "sp_loss": sp_loss.detach()}
+        )
 
         return joint_loss
 
@@ -257,13 +288,14 @@ class S3Rec(BaseModule):
         self.log("avg_sp_loss", avg_sp_loss)
 
         self.training_step_outputs.clear()
-        raise NotImplementedError
 
 
 ## sasrec for finetune
-class SASRec(BaseModule):
-    def __init__(self, config: Config, valid_matrix: csr_matrix, test_matrix: csr_matrix, submission_matrix: csr_matrix):
-        super().__init__(config)
+class SASRec(L.LightningModule):
+    def __init__(self, config: Config, valid_matrix: csr_matrix, test_matrix: csr_matrix, submission_matrix: csr_matrix) -> None:
+        super().__init__()
+        self.config = config
+        self.sasrec = SASRecModule(config)
         self.pred_list = None
         self.answer_list = None
         self.rec_avg_loss = 0.0
@@ -271,49 +303,22 @@ class SASRec(BaseModule):
         self.valid_matrix = valid_matrix
         self.test_matrix = test_matrix
         self.submission_matrix = submission_matrix
+        self.training_step_outputs = []
 
-    def save(self, file_name: str) -> None:
-        torch.save(self.model.cpu().state_dict(), file_name)
-        self.model.to(self.device)
-
-    def load(self, file_name: str) -> None:
-        self.load_state_dict(torch.load(file_name))
-
-    def get_full_sort_score(self, epoch, answers, pred_list):
-        recall, ndcg = [], []
-        for k in [5, 10]:
-            recall.append(recall_at_k(answers, pred_list, k))
-            ndcg.append(ndcg_k(answers, pred_list, k))
-        post_fix = {
-            "Epoch": epoch,
-            "RECALL@5": "{:.4f}".format(recall[0]),
-            "NDCG@5": "{:.4f}".format(ndcg[0]),
-            "RECALL@10": "{:.4f}".format(recall[1]),
-            "NDCG@10": "{:.4f}".format(ndcg[1]),
-        }
-        print(post_fix)
-
-        return [recall[0], ndcg[0], recall[1], ndcg[1]], str(post_fix)
-
-    def predict_full(self, seq_out):
-        # [item_num hidden_size]
-        test_item_emb = self.model.item_embeddings.weight
-        # [batch hidden_size ]
-        rating_pred = torch.matmul(seq_out, test_item_emb.transpose(0, 1))
-        return rating_pred
+        self.apply(self.sasrec.init_weights)
 
     def compute_loss(self, seq_output, target_pos, target_neg):
         # [batch seq_len hidden_size]
-        pos_emb = self.item_embeddings(target_pos)
-        neg_emb = self.item_embeddings(target_neg)
+        pos_emb = self.sasrec.item_embeddings(target_pos)
+        neg_emb = self.sasrec.item_embeddings(target_neg)
         # [batch*seq_len hidden_size]
         pos = pos_emb.view(-1, pos_emb.size(2))
         neg = neg_emb.view(-1, neg_emb.size(2))
-        seq_emb = seq_output.view(-1, self.hidden_size)  # [batch*seq_len hidden_size]
+        seq_emb = seq_output.view(-1, self.sasrec.hidden_size)  # [batch*seq_len hidden_size]
 
         pos_logits = torch.sum(pos * seq_emb, -1)  # [batch*seq_len]
         neg_logits = torch.sum(neg * seq_emb, -1)
-        istarget = (target_pos > 0).view(target_pos.size(0) * self.max_seq_length).float()  # [batch*seq_len]
+        istarget = (target_pos > 0).view(target_pos.size(0) * self.sasrec.max_seq_length).float()  # [batch*seq_len]
         loss = torch.sum(
             -torch.log(torch.sigmoid(pos_logits) + 1e-24) * istarget - torch.log(1 - torch.sigmoid(neg_logits) + 1e-24) * istarget
         ) / torch.sum(istarget)
@@ -333,22 +338,17 @@ class SASRec(BaseModule):
         _, input_ids, target_pos, target_neg, _ = batch  # predict
         seq_output = self(input_ids)
         loss = self.compute_loss(seq_output, target_pos, target_neg)
-
-        self.rec_avg_loss += loss.item()
-        self.rec_cur_loss = loss.item()
+        self.training_step_outputs.append({"rec_avg_loss": loss.detach()})
+        self.rec_cur_loss = loss.detach()
 
         return loss
 
-    def train_epoch_end(self):
-        self.rec_avg_loss = 0.0
-        self.rec_cur_loss = 0.0
-        """
-        add loggig
-        post_fix = {
-                "rec_avg_loss": "{:.4f}".format(self.rec_avg_loss / len(rec_data_iter)),
-                "rec_cur_loss": "{:.4f}".format(self.rec_cur_loss),
-            }
-        """
+    def on_train_epoch_end(self):
+        rec_avg_loss = torch.stack([x["rec_avg_loss"] for x in self.sasrec.training_step_outputs]).mean()
+        self.log("rec_avg_loss", rec_avg_loss)
+        self.log("rec_cur_loss", self.training_step_outputs[-1]["rec_avg_loss"])
+
+        self.training_step_outputs.clear()
 
     def validation_step(self, batch, batch_idx):
         user_ids, input_ids, _, _, answers = batch
@@ -375,13 +375,12 @@ class SASRec(BaseModule):
             self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
-    def validation_epoch_end(self):
+    def on_validation_epoch_end(self):
+        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        self.log("NDCG@10", metrics[3])
+
         self.pred_list = None
         self.answer_list = None
-        """
-        logging
-        self.get_full_sort_score(epoch, self.answer_list, self.pred_list)
-        """
 
     def test_step(self, batch, batch_idx):
         user_ids, input_ids, _, _, answers = batch
@@ -408,11 +407,12 @@ class SASRec(BaseModule):
             self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
 
-    def test_epoch_end(self):
-        """
-        self.get_full_sort_score(epoch, self.answer_list, self.pred_list)
+    def on_test_epoch_end(self):
+        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        self.log("NDCG@10", metrics[3])
 
-        """
+        self.pred_list = None
+        self.answer_list = None
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         user_ids, input_ids, _, _, answers = batch
@@ -438,27 +438,8 @@ class SASRec(BaseModule):
         else:
             self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
             self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
+
         return self.pred_list
 
     def forward(self, input_ids):
-        attention_mask = (input_ids > 0).long()
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64
-        max_len = attention_mask.size(-1)
-        attn_shape = (1, max_len, max_len)
-        subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1)  # torch.uint8
-        subsequent_mask = (subsequent_mask == 0).unsqueeze(1)
-        subsequent_mask = subsequent_mask.long()
-
-        if self.config.cuda_condition:
-            subsequent_mask = subsequent_mask.cuda()
-
-        extended_attention_mask = extended_attention_mask * subsequent_mask
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-
-        seq_emb = self.make_seq_embedding(input_ids)
-
-        item_encoded_layers = self.item_encoder(seq_emb, extended_attention_mask, output_all_encoded_layers=True)
-
-        seq_output = item_encoded_layers[-1]
-        return seq_output
+        return self.sasrec.forward(input_ids)
