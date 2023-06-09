@@ -1,0 +1,16 @@
+project: MovieRec_Tabular
+entity: recsys01
+program: main.py
+method: grid
+metric:
+  goal: maximize
+  name: val_recall
+parameters:
+  trainer.epoch:
+    values: [10, 20, 30]
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args_no_hyphens}
