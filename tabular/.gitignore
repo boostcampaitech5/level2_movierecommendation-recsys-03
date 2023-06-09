@@ -19,3 +19,6 @@ key
 
 # hydra outputs
 /outputs
+
+# wandb outputs
+/wandb
