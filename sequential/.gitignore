@@ -1,0 +1,8 @@
+# hydra outputs
+/outputs
+
+# lightning
+/lightning_logs
+
+# model file
+/output
