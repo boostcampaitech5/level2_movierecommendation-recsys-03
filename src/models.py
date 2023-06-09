@@ -213,8 +213,6 @@ class SASRec(L.LightningModule):
         self.sasrec = modules.SASRec(config)
         self.pred_list = None
         self.answer_list = None
-        self.rec_avg_loss = 0.0
-        self.rec_cur_loss = 0.0
         self.valid_matrix = valid_matrix
         self.test_matrix = test_matrix
         self.submission_matrix = submission_matrix
@@ -262,7 +260,6 @@ class SASRec(L.LightningModule):
         seq_output = self(input_ids)
         loss = self.compute_loss(seq_output, target_pos, target_neg)
         self.training_step_outputs.append({"rec_avg_loss": loss.detach()})
-        self.rec_cur_loss = loss.detach()
 
         return loss
 
