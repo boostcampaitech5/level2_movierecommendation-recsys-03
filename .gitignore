@@ -3,6 +3,8 @@ __pycache__
 
 # data
 /data
+*.csv
+*.tsv
 
 #vscode
 /.vscode
@@ -18,7 +20,11 @@ key
 *.env
 
 # hydra outputs
+tabular/outputs
 /outputs
 
 # lightning
 /lightning_logs
+
+# wandb outputs
+tabular/wandb
