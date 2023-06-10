@@ -3,9 +3,12 @@ __pycache__
 
 # data
 /data
+*.csv
+*.tsv
 
 #vscode
 /.vscode
+.vscode
 
 # MacOS
 .DS_Store
@@ -17,10 +20,11 @@ key
 *.env
 
 # hydra outputs
+tabular/outputs
 /outputs
 
 # lightning
 /lightning_logs
 
-# model file
-/output
+# wandb outputs
+tabular/wandb
