@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from tabular.utils import set_seeds, get_timestamp
 
 
-def __main(config: DictConfig = None) -> None:
+def main(config: DictConfig = None) -> None:
     # setting
     print(f"----------------- Setting -----------------")
     config.timestamp = get_timestamp()
@@ -29,9 +29,9 @@ def __main(config: DictConfig = None) -> None:
 
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")
-def main(config: DictConfig = None) -> None:
-    __main(config)
+def main_hydra(config: DictConfig = None) -> None:
+    main(config)
 
 
 if __name__ == "__main__":
-    main()
+    main_hydra()
