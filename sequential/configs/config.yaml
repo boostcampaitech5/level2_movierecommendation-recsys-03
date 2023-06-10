@@ -1,7 +1,7 @@
 timestamp:
 seed: 42
 gpu_id: 0
-no_cuda: true
+no_cuda: false
 
 # reserved keys (don't modify!)
 cuda_condition:

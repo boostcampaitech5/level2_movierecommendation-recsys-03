@@ -96,6 +96,7 @@ class S3RecDataset(Dataset):
         # Associated Attribute Prediction
         # Masked Attribute Prediction
         attrs = []
+
         for item in pos_items:
             if item in self.item2attr:
                 attrs.append(self.item2attr[item])

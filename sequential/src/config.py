@@ -28,7 +28,7 @@ class Path:
 @dataclass
 class Trainer:
     is_pretrain: bool
-    use_pratrain: bool
+    use_pretrain: bool
     pretrain_version: str
     epoch: int
     lr: float

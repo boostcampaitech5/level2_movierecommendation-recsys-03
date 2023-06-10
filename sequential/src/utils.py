@@ -116,7 +116,7 @@ def generate_submission_file(config: Config, preds):
 
     sub_df = pd.read_csv(sample_sub_path)
 
-    items = np.array(preds)
+    items = np.vstack(preds)
     items = items.reshape(-1)
 
     sub_df.loc[:, "item"] = items
