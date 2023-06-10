@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime
 
 
-def set_seeds(seed: int = 42):
+def set_seeds(seed: int):
     # set random seed
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
