@@ -3,9 +3,12 @@ import torch
 import os
 from src.config import Config
 from src.utils import get_timestamp, set_seed
-from src.trainers import HoldoutTrainer, PretrainTrainer
+from src.trainers import HoldoutTrainer, PretrainTrainer, KFoldTrainer
 from src.models import S3Rec, SASRec
 from src.dataloaders import S3RecDataModule, SASRecDataModule
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def get_trainer(config: Config):
@@ -29,7 +32,10 @@ def get_trainer(config: Config):
 
             model.load_pretrained_module(pretrain_path)
 
-        return HoldoutTrainer(config, model=model, data_module=datamodule, metric="NDCG@10", mode="max")
+        if config.trainer.cv:
+            return KFoldTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
+        else:
+            return HoldoutTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
 
 
 def main(config: Config = None) -> None:
