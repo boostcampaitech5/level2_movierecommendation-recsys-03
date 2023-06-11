@@ -2,11 +2,10 @@ from src.config import Config
 from src.utils import generate_submission_file
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
-from src.dataloaders import KFoldDataModule
+from src.dataloaders import KFoldDataModuleContainer
 import torch
 import lightning as L
-from sklearn.model_selection import KFold, TimeSeriesSplit
-import numpy as np
+import copy
 
 
 class HoldoutTrainer:
@@ -62,69 +61,62 @@ class PretrainTrainer(HoldoutTrainer):
         self.model.save_pretrained_module(self.pretrain_path)
 
 
-class KFoldTrainer(HoldoutTrainer):
-    def __init__(self, config: Config, model: L.LightningModule, data_module: L.LightningDataModule, metric: str, mode: str) -> None:
-        super().__init__(config, model, data_module, metric, mode)
-        self.cv_score = 0
-        self.model = model
+class KFoldTrainer:
+    def __init__(
+        self, config: Config, model: L.LightningModule, kfold_data_module_container: KFoldDataModuleContainer, metric: str, mode: str
+    ) -> None:
+        self.config = config
+        self.n_fold = config.trainer.k
+
+        self.kfold_data_module_container = kfold_data_module_container
+
+        self.fold_trainers: list[HoldoutTrainer] = self.__fold_trainers(self.n_fold, config, model, kfold_data_module_container, metric, mode)
         self.sub_result_csv_list = []
         self.val_result_csv_list = []
-        self.data_module = data_module
-        self.data_module.prepare_data()
 
-    def split_data(self, data: str, idx: int) -> dict:
-        if idx == 0:
-            new_data = {
-                "input_ids": [user[:idx] for user in data["input_ids"]],
-                "target_pos": [user[:idx] for user in data["target_pos"]],
-                "answers": data["answers"],
-            }
-        else:
-            new_data = {
-                "input_ids": [user[:idx] for user in data["input_ids"]],
-                "target_pos": [user[:idx] for user in data["target_pos"]],
-                "answers": [[user[idx]] for user in data["input_ids"]],
-            }
+    def __fold_trainers(
+        self, n_fold: int, config: Config, model: L.LightningModule, kfold_data_module_container: KFoldDataModuleContainer, metric: str, mode: str
+    ) -> list[HoldoutTrainer]:
+        fold_trainers = []
 
-        return new_data
+        for fold in range(n_fold):
+            fold_model = copy.deepcopy(model)
+            kfold_data_module = kfold_data_module_container.kfold_data_module(fold)
+
+            trainer = HoldoutTrainer(config, fold_model, kfold_data_module, metric, mode)
+            fold_trainers.append(trainer)
+
+        return fold_trainers
 
     def train(self):
-        for fold, idx in enumerate(range(1, self.config.trainer.k + 1)):
-            train_idx = -1 * idx
-            valid_idx = idx - 1
-            print(f"------------- Fold {fold}  :  train {train_idx}, val {valid_idx} -------------")
-            # set data for training and validation in fold
+        cv_score = 0.0
 
-            self.fold_model = self.model
-            self.fold_trainer = L.Trainer(max_epochs=self.config.trainer.epoch, callbacks=[self.early_stop, self.checkpoint], accelerator="cuda")
+        for fold, fold_trainer in enumerate(self.fold_trainers):
+            # print(f"------------- Fold {fold}  :  train {train_idx}, val {valid_idx} -------------")
+            print(f"------------- Fold {fold} -------------")
 
-            self.fold_dm = KFoldDataModule(self.config, self.data_module.user_seq)
-
-            self.fold_dm.setup()
-
-            self.fold_dm.valid_data = self.split_data(self.fold_dm.train_data, valid_idx)
-            self.fold_dm.train_data = self.split_data(self.fold_dm.train_data, train_idx)
-            self.fold_dm.submission_data = self.fold_dm.submission_data
-
-            # train n validation
-            self.fold_trainer.fit(self.fold_model, datamodule=self.fold_dm)
+            fold_trainer.train()
+            fold_model = fold_trainer.model
 
             print(
                 "check tr_result, val_result: ",
-                len(self.fold_model.tr_result),
-                len(self.fold_model.val_result),
+                len(fold_model.tr_result),
+                len(fold_model.val_result),
             )
-            tr_avg_loss = torch.stack([x["rec_avg_loss"] for x in self.fold_model.tr_result]).mean()
-            tr_cur_loss = torch.stack([x["rec_cur_loss"] for x in self.fold_model.tr_result]).mean()
+            tr_avg_loss = torch.stack([x["rec_avg_loss"] for x in fold_model.tr_result]).mean()
+            tr_cur_loss = torch.stack([x["rec_cur_loss"] for x in fold_model.tr_result]).mean()
 
-            val_recall = self.fold_model.val_result.mean()
+            val_recall = fold_model.val_result.mean()
 
             print(f">>> >>> tr_avg_loss: {tr_avg_loss},tr_cur_loss: {tr_cur_loss}, val_recall@10: {val_recall}")
-            self.cv_score += val_recall / self.config.trainer.k
-            # self.cv_predict(fold)
+            cv_score += val_recall
 
-        print(f"-----------------cv_recall@10_score: {self.cv_score}-----------------")
+        cv_score /= self.n_fold
+        print(f"-----------------cv_recall@10_score: {cv_score}-----------------")
 
-    def cv_predict(self, fold: int):
-        sub_predictions = self.fold_trainer.predict(self.fold_model, datamodule=self.fold_dm)
+        return cv_score
+
+    def predict(self, fold: int):
+        # sub_predictions = self.fold_trainer.predict(self.fold_model, datamodule=self.fold_dm)
         # generate_submission_file(self.config, sub_predictions, fold)
+        pass

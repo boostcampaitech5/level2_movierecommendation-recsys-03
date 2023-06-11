@@ -5,7 +5,7 @@ from src.config import Config
 from src.utils import get_timestamp, set_seed
 from src.trainers import HoldoutTrainer, PretrainTrainer, KFoldTrainer
 from src.models import S3Rec, SASRec
-from src.dataloaders import S3RecDataModule, SASRecDataModule
+from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataModuleContainer
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -33,7 +33,9 @@ def get_trainer(config: Config):
             model.load_pretrained_module(pretrain_path)
 
         if config.trainer.cv:
-            return KFoldTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
+            kfold_data_module_container = SASRecKFoldDataModuleContainer(config)
+
+            return KFoldTrainer(config, model=model, kfold_data_module_container=kfold_data_module_container, metric="Recall@10", mode="max")
         else:
             return HoldoutTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
 
