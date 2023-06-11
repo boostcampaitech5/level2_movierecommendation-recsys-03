@@ -30,6 +30,7 @@ class Trainer:
     is_pretrain: bool
     use_pretrain: bool
     pretrain_version: str
+    k: int
     epoch: int
     lr: float
     weight_decay: float
