@@ -1,2 +1,2 @@
-from S3RecDataModule import S3RecDataModule
-from SASRecDataModule import SASRecDataModule
+from src.dataloaders.S3RecDataModule import *
+from src.dataloaders.SASRecDataModule import *
