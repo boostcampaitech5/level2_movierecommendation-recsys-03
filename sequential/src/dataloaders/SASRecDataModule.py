@@ -1,9 +1,8 @@
 import lightning as L
-import numpy as np
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
 from src.utils import get_user_seqs, get_user_seqs_long, get_item2attr_json
-from src.datasets import S3RecDataset, SASRecDataset
+from src.datasets import SASRecDataset
 
 
 class SASRecDataModule(L.LightningDataModule):
