@@ -124,11 +124,10 @@ class S3RecDataset(Dataset):
 
 
 class SASRecDataset(Dataset):
-    def __init__(self, config: Config, data: dict, user_seq: list, test_neg_items=None):
+    def __init__(self, config: Config, data: dict, user_seq: list):
         self.config = config
         self.user_seq = user_seq
         self.data = data
-        self.test_neg_items = test_neg_items
         self.max_len = self.config.data.max_seq_length
 
     def __getitem__(self, index):
@@ -158,25 +157,13 @@ class SASRecDataset(Dataset):
         assert len(target_pos) == self.max_len
         assert len(target_neg) == self.max_len
 
-        if self.test_neg_items is not None:  # remove?
-            test_samples = self.test_neg_items[index]
-
-            cur_tensors = (
-                torch.tensor(user_id, dtype=torch.long),  # user_id for testing [1]
-                torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
-                torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
-                torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
-                torch.tensor(answers, dtype=torch.long),  # answer [1]
-                torch.tensor(test_samples, dtype=torch.long),
-            )
-        else:
-            cur_tensors = (
-                torch.tensor(user_id, dtype=torch.long),  # user_id for testing [1]
-                torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
-                torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
-                torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
-                torch.tensor(answers, dtype=torch.long),  # answer [1]
-            )
+        cur_tensors = (
+            torch.tensor(user_id, dtype=torch.long),  # user_id for testing [1]
+            torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
+            torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
+            torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
+            torch.tensor(answers, dtype=torch.long),  # answer [1]
+        )
 
         return cur_tensors
 
