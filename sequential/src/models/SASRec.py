@@ -20,6 +20,8 @@ class SASRec(L.LightningModule):
         self.test_matrix = test_matrix
         self.submission_matrix = submission_matrix
         self.training_step_outputs = []
+        self.tr_result = []
+        self.val_result = np.array([])
 
         self.apply(self.sasrec.init_weights)
 
@@ -68,8 +70,10 @@ class SASRec(L.LightningModule):
 
     def on_train_epoch_end(self):
         rec_avg_loss = torch.stack([x["rec_avg_loss"] for x in self.training_step_outputs]).mean()
+        rec_cur_loss = self.training_step_outputs[-1]["rec_avg_loss"]
         self.log("rec_avg_loss", rec_avg_loss)
-        self.log("rec_cur_loss", self.training_step_outputs[-1]["rec_avg_loss"])
+        self.log("rec_cur_loss", rec_cur_loss)
+        self.tr_result.append({"rec_avg_loss": rec_avg_loss, "rec_cur_loss": rec_cur_loss})
 
         self.training_step_outputs.clear()
 
@@ -100,7 +104,8 @@ class SASRec(L.LightningModule):
 
     def on_validation_epoch_end(self):
         metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
-        self.log("NDCG@10", metrics[3])
+        self.log("Recall@10", metrics[2])
+        self.val_result = np.append(self.val_result, metrics[2])
 
         self.pred_list = None
         self.answer_list = None
@@ -132,7 +137,7 @@ class SASRec(L.LightningModule):
 
     def on_test_epoch_end(self):
         metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
-        self.log("NDCG@10", metrics[3])
+        self.val_result = np.append(self.val_result, metrics[2])
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         user_ids, input_ids, _, _, answers = batch
