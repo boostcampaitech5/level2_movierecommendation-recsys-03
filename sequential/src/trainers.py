@@ -2,7 +2,7 @@ from src.config import Config
 from src.utils import generate_submission_file
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
-from src.dataloaders import KFoldModule
+from src.dataloaders import KFoldDataModule
 import torch
 import lightning as L
 from sklearn.model_selection import KFold, TimeSeriesSplit
@@ -98,7 +98,7 @@ class KFoldTrainer(HoldoutTrainer):
             self.fold_model = self.model
             self.fold_trainer = L.Trainer(max_epochs=self.config.trainer.epoch, callbacks=[self.early_stop, self.checkpoint], accelerator="cuda")
 
-            self.fold_dm = KFoldModule(self.config, self.data_module.user_seq)
+            self.fold_dm = KFoldDataModule(self.config, self.data_module.user_seq)
 
             self.fold_dm.setup()
 

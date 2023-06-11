@@ -136,7 +136,7 @@ class SASRecDataset(Dataset):
         items = self.user_seq[index]
         input_ids = self.data["input_ids"][index]
         target_pos = self.data["target_pos"][index]
-        answer = self.data["answer"][index]
+        answers = self.data["answers"][index]
 
         target_neg = []
         seq_set = set(items)
@@ -166,7 +166,7 @@ class SASRecDataset(Dataset):
                 torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
                 torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
                 torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
-                torch.tensor(answer, dtype=torch.long),  # answer [1]
+                torch.tensor(answers, dtype=torch.long),  # answer [1]
                 torch.tensor(test_samples, dtype=torch.long),
             )
         else:
@@ -175,10 +175,10 @@ class SASRecDataset(Dataset):
                 torch.tensor(input_ids, dtype=torch.long),  # item_id [seqlen]
                 torch.tensor(target_pos, dtype=torch.long),  # target_pos [seqlen]
                 torch.tensor(target_neg, dtype=torch.long),  # target_neg [seqlen]
-                torch.tensor(answer, dtype=torch.long),  # answer [1]
+                torch.tensor(answers, dtype=torch.long),  # answer [1]
             )
 
         return cur_tensors
 
     def __len__(self):
-        return len(self.user_seq)
+        return len(self.data["input_ids"])

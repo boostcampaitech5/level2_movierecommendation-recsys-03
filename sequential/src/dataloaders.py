@@ -49,7 +49,7 @@ class SASRecDataModule(L.LightningDataModule):
         self.valid_matrix = None
         self.test_matrix = None
         self.submission_matrix = None
-        self.n_user = None  # TODO
+        self.n_user = None
 
         self.train_dir = self.config.path.train_dir
         self.train_file = self.config.path.train_file
@@ -75,14 +75,14 @@ class SASRecDataModule(L.LightningDataModule):
             self.train_data = {
                 "input_ids": [seq[:-3] for seq in self.user_seq],
                 "target_pos": [seq[1:-2] for seq in self.user_seq],
-                "answer": [[0] for _ in range(self.n_user)],
+                "answers": [[0] for _ in range(self.n_user)],
             }
 
             # valid
             self.valid_data = {
                 "input_ids": [seq[:-2] for seq in self.user_seq],
                 "target_pos": [seq[1:-1] for seq in self.user_seq],
-                "answer": [[seq[-2]] for seq in self.user_seq],
+                "answers": [[seq[-2]] for seq in self.user_seq],
             }
 
         elif stage == "test" or stage is None:
@@ -90,11 +90,11 @@ class SASRecDataModule(L.LightningDataModule):
             self.test_data = {
                 "input_ids": [seq[:-1] for seq in self.user_seq],
                 "target_pos": [seq[1:] for seq in self.user_seq],
-                "answer": [[seq[-1]] for seq in self.user_seq],
+                "answers": [[seq[-1]] for seq in self.user_seq],
             }
 
         elif stage == "predict" or stage is None:
-            self.submission_data = {"input_ids": self.user_seq, "target_pos": self.user_seq, "answer": [[0] for _ in range(self.n_user)]}
+            self.submission_data = {"input_ids": self.user_seq, "target_pos": self.user_seq, "answers": [[0] for _ in range(self.n_user)]}
 
     def train_dataloader(self) -> DataLoader:
         train_dataset = SASRecDataset(config=self.config, data=self.train_data, user_seq=self.user_seq)
@@ -115,3 +115,34 @@ class SASRecDataModule(L.LightningDataModule):
         submission_dataset = SASRecDataset(config=self.config, data=self.submission_data, user_seq=self.user_seq)
         submission_sampler = SequentialSampler(submission_dataset)
         return DataLoader(submission_dataset, sampler=submission_sampler, batch_size=self.batch_size, num_workers=0)
+
+
+class KFoldDataModule(SASRecDataModule):
+    def __init__(self, config: Config, user_seq: list):
+        super().__init__(config)
+        self.user_seq = user_seq
+        self.train_data = None
+        self.valid_data = None
+        self.test_data = None
+        self.submission_data = None
+
+    def setup(self, stage=None):
+        self.n_user = len(self.user_seq)
+
+        if stage == "fit" or stage is None:
+            # train
+            self.train_data = {
+                "input_ids": [seq[:-2] for seq in self.user_seq],
+                "target_pos": [seq[1:-1] for seq in self.user_seq],
+                "answers": [[seq[-2]] for seq in self.user_seq],
+            }
+        elif stage == "test" or stage is None:
+            # test
+            self.test_data = {
+                "input_ids": [seq[:-1] for seq in self.user_seq],
+                "target_pos": [seq[1:] for seq in self.user_seq],
+                "answers": [[seq[-1]] for seq in self.user_seq],
+            }
+
+        elif stage == "predict" or stage is None:
+            self.submission_data = {"input_ids": self.user_seq, "target_pos": self.user_seq, "answers": [[0] for _ in range(self.n_user)]}
