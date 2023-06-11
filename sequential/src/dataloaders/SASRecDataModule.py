@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
 from src.utils import get_user_seqs, get_user_seqs_long, get_item2attr_json
 from src.datasets import SASRecDataset
-from src.dataloaders import KFoldDataModule, KFoldDataModuleContainer
+from src.dataloaders.common import KFoldDataModule, KFoldDataModuleContainer
 
 
 class SASRecDataModule(L.LightningDataModule):
