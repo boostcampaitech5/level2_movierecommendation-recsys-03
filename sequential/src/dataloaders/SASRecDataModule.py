@@ -92,7 +92,7 @@ class SASRecDataModule(L.LightningDataModule):
 
 class SASRecKFoldDataModule(SASRecDataModule, KFoldDataModule):
     def __init__(self, config: Config, fold: int):
-        SASRecDataModule.__init__(config)
+        SASRecDataModule.__init__(self, config)
         self.fold = fold
 
     def __split_data(self, data: str, idx: int) -> dict:
