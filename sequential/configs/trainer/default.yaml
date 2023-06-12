@@ -1,5 +1,5 @@
 # pretrain
-is_pretrain: false
+is_pretrain: true
 
 # use pretrain
 use_pretrain: true
@@ -14,7 +14,7 @@ cv: true
 k: 5
 
 # epoch for training
-epoch: 1
+epoch: 300
 
 # learning rate
 lr: 0.001
