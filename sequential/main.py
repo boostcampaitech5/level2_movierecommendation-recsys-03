@@ -1,5 +1,7 @@
 import hydra
 import torch
+import wandb
+import dotenv
 import os
 from src.config import Config
 from src.utils import get_timestamp, set_seed
@@ -9,6 +11,26 @@ from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataMo
 import warnings
 
 warnings.filterwarnings("ignore")
+
+
+def init_wandb(is_pretrain: bool, config: Config) -> None:
+    dotenv.load_dotenv()
+    WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
+    wandb.login(key=WANDB_API_KEY)
+
+    if is_pretrain:
+        run = wandb.init(
+            project=config.wandb.project + "Pretrain",
+            entity=config.wandb.entity,
+            name=config.wandb.name,
+        )
+    else:
+        run = wandb.init(
+            project=config.wandb.project + "Sequential",
+            entity=config.wandb.entity,
+            name=config.wandb.name,
+        )
+        run.tags = [config.model.model_name]
 
 
 def get_trainer(config: Config):
@@ -44,8 +66,12 @@ def main(config: Config = None) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_id)
     set_seed(config.seed)
 
+    print(f"----------------- Setting -----------------")
     config.timestamp = get_timestamp()
+    config.wandb.name = "work-" + config.timestamp
     config.cuda_condition = torch.cuda.is_available() and not config.no_cuda
+
+    init_wandb(config.trainer.is_pretrain, config)
 
     trainer = get_trainer(config)
     trainer.train()
@@ -53,6 +79,8 @@ def main(config: Config = None) -> None:
     if not config.trainer.is_pretrain:
         trainer.test()
         trainer.predict()
+
+    wandb.finish()
 
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")
