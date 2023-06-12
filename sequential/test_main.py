@@ -23,3 +23,7 @@ def test_main(*args, **kwargs):
                 main(config)
 
     inner_main()
+
+
+if __name__ == "__main__":
+    test_main()
