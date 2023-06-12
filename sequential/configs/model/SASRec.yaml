@@ -2,16 +2,16 @@
 model_name: SASRec
 
 # hidden dimension
-hidden_size: 1
+hidden_size: 64
 
 # encoder hidden dimension
-num_hidden_layers: 1
+num_hidden_layers: 2
 
 # todo: fill
 initializer_range: 0.02
 
 # todo: fill
-num_attention_heads: 1
+num_attention_heads: 2
 
 # todo: fill
 hidden_act: gelu

@@ -178,17 +178,23 @@ class S3Rec(L.LightningModule):
 
         joint_loss = self.aap_weight * aap_loss + self.mip_weight * mip_loss + self.map_weight * map_loss + self.sp_weight * sp_loss
 
+        batch_size = len(attrs)
         self.training_step_outputs.append(
-            {"aap_loss": aap_loss.detach(), "mip_loss": mip_loss.detach(), "map_loss": map_loss.detach(), "sp_loss": sp_loss.detach()}
+            {
+                "avg_aap_loss": aap_loss.detach() / batch_size,
+                "avg_mip_loss": mip_loss.detach() / batch_size,
+                "avg_map_loss": map_loss.detach() / batch_size,
+                "avg_sp_loss": sp_loss.detach() / batch_size,
+            }
         )
 
         return joint_loss
 
     def on_train_epoch_end(self) -> None:
-        avg_aap_loss = torch.stack([x["aap_loss"] for x in self.training_step_outputs]).mean()
-        avg_mip_loss = torch.stack([x["mip_loss"] for x in self.training_step_outputs]).mean()
-        avg_map_loss = torch.stack([x["map_loss"] for x in self.training_step_outputs]).mean()
-        avg_sp_loss = torch.stack([x["sp_loss"] for x in self.training_step_outputs]).mean()
+        avg_aap_loss = torch.stack([x["avg_aap_loss"] for x in self.training_step_outputs]).mean()
+        avg_mip_loss = torch.stack([x["avg_mip_loss"] for x in self.training_step_outputs]).mean()
+        avg_map_loss = torch.stack([x["avg_map_loss"] for x in self.training_step_outputs]).mean()
+        avg_sp_loss = torch.stack([x["avg_sp_loss"] for x in self.training_step_outputs]).mean()
 
         self.log("avg_aap_loss", avg_aap_loss)
         self.log("avg_mip_loss", avg_mip_loss)
