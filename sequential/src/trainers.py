@@ -2,8 +2,10 @@ from src.config import Config
 from src.utils import generate_submission_file
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
+from src.dataloaders import KFoldDataModuleContainer
 import torch
 import lightning as L
+import copy
 
 
 class HoldoutTrainer:
@@ -57,3 +59,64 @@ class PretrainTrainer(HoldoutTrainer):
         # load and
         self.model.load_from_checkpoint(self.checkpoint.best_model_path, config=self.config)
         self.model.save_pretrained_module(self.pretrain_path)
+
+
+class KFoldTrainer:
+    def __init__(
+        self, config: Config, model: L.LightningModule, kfold_data_module_container: KFoldDataModuleContainer, metric: str, mode: str
+    ) -> None:
+        self.config = config
+        self.n_fold = config.trainer.k
+
+        self.kfold_data_module_container = kfold_data_module_container
+
+        self.fold_trainers: list[HoldoutTrainer] = self.__fold_trainers(self.n_fold, config, model, kfold_data_module_container, metric, mode)
+        self.sub_result_csv_list = []
+        self.val_result_csv_list = []
+
+    def __fold_trainers(
+        self, n_fold: int, config: Config, model: L.LightningModule, kfold_data_module_container: KFoldDataModuleContainer, metric: str, mode: str
+    ) -> list[HoldoutTrainer]:
+        fold_trainers = []
+
+        for fold in range(n_fold):
+            fold_model = copy.deepcopy(model)
+            kfold_data_module = kfold_data_module_container.kfold_data_module(fold)
+
+            trainer = HoldoutTrainer(config, fold_model, kfold_data_module, metric, mode)
+            fold_trainers.append(trainer)
+
+        return fold_trainers
+
+    def train(self):
+        cv_score = 0.0
+
+        for fold, fold_trainer in enumerate(self.fold_trainers):
+            # print(f"------------- Fold {fold}  :  train {train_idx}, val {valid_idx} -------------")
+            print(f"------------- Fold {fold} -------------")
+
+            fold_trainer.train()
+            fold_model = fold_trainer.model
+
+            print(
+                "check tr_result, val_result: ",
+                len(fold_model.tr_result),
+                len(fold_model.val_result),
+            )
+            tr_avg_loss = torch.stack([x["rec_avg_loss"] for x in fold_model.tr_result]).mean()
+            tr_cur_loss = torch.stack([x["rec_cur_loss"] for x in fold_model.tr_result]).mean()
+
+            val_recall = fold_model.val_result.mean()
+
+            print(f">>> >>> tr_avg_loss: {tr_avg_loss},tr_cur_loss: {tr_cur_loss}, val_recall@10: {val_recall}")
+            cv_score += val_recall
+
+        cv_score /= self.n_fold
+        print(f"-----------------cv_recall@10_score: {cv_score}-----------------")
+
+        return cv_score
+
+    def predict(self, fold: int):
+        # sub_predictions = self.fold_trainer.predict(self.fold_model, datamodule=self.fold_dm)
+        # generate_submission_file(self.config, sub_predictions, fold)
+        pass
