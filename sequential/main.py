@@ -1,8 +1,9 @@
 import hydra
 import torch
+import wandb
 import os
 from src.config import Config
-from src.utils import get_timestamp, set_seed
+from src.utils import get_timestamp, set_seed, init_wandb, log_parameters
 from src.trainers import HoldoutTrainer, PretrainTrainer, KFoldTrainer
 from src.models import S3Rec, SASRec
 from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataModuleContainer
@@ -44,8 +45,13 @@ def main(config: Config = None) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_id)
     set_seed(config.seed)
 
+    print(f"----------------- Setting -----------------")
     config.timestamp = get_timestamp()
+    config.wandb.name = "work-" + config.timestamp
     config.cuda_condition = torch.cuda.is_available() and not config.no_cuda
+
+    init_wandb(config.trainer.is_pretrain, config)
+    log_parameters(config.trainer.is_pretrain, config)
 
     trainer = get_trainer(config)
     trainer.train()
@@ -53,6 +59,8 @@ def main(config: Config = None) -> None:
     if not config.trainer.is_pretrain:
         trainer.test()
         trainer.predict()
+
+    wandb.finish()
 
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")
