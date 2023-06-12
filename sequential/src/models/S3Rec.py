@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import wandb
 import lightning as L
 from torch.optim import Optimizer
 from torch.optim import Adam
@@ -200,6 +201,8 @@ class S3Rec(L.LightningModule):
         self.log("avg_mip_loss", avg_mip_loss)
         self.log("avg_map_loss", avg_map_loss)
         self.log("avg_sp_loss", avg_sp_loss)
+
+        wandb.log({"avg_aap_loss": avg_aap_loss, "avg_mip_loss": avg_mip_loss, "avg_map_loss": avg_map_loss, "avg_sp_loss": avg_sp_loss})
 
         self.training_step_outputs.clear()
 
