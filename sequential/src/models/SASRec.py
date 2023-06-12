@@ -14,8 +14,9 @@ class SASRec(L.LightningModule):
         super().__init__()
         self.config = config
         self.sasrec = modules.SASRec(config)
-        self.pred_list = None
-        self.answer_list = None
+        self.pred_list = []
+        self.answer_list = []
+        self.rating_pred_list = []
         self.valid_matrix = valid_matrix
         self.test_matrix = test_matrix
         self.submission_matrix = submission_matrix
@@ -95,20 +96,19 @@ class SASRec(L.LightningModule):
 
         batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
-        if self.pred_list is None:
-            self.pred_list = batch_pred_list
-            self.answer_list = answers.cpu().data.numpy()
-        else:
-            self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
-            self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
+        self.pred_list.append(batch_pred_list)
+        self.answer_list.append(answers.cpu().data.numpy())
 
     def on_validation_epoch_end(self):
-        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        pred_list = np.concatenate(self.pred_list, axis=0)
+        answer_list = np.concatenate(self.answer_list, axis=0)
+
+        metrics = self.get_full_sort_score(answer_list, pred_list)
         self.log("Recall@10", metrics[2])
         self.val_result = np.append(self.val_result, metrics[2])
 
-        self.pred_list = None
-        self.answer_list = None
+        self.pred_list.clear()
+        self.answer_list.clear()
 
     def test_step(self, batch, batch_idx):
         user_ids, input_ids, _, _, answers = batch
@@ -128,21 +128,24 @@ class SASRec(L.LightningModule):
 
         batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
-        if self.pred_list is None:
-            self.pred_list = batch_pred_list
-            self.answer_list = answers.cpu().data.numpy()
-        else:
-            self.pred_list = np.append(self.pred_list, batch_pred_list, axis=0)
-            self.answer_list = np.append(self.answer_list, answers.cpu().data.numpy(), axis=0)
+        self.pred_list.append(batch_pred_list)
+        self.answer_list.append(answers.cpu().data.numpy())
 
     def on_test_epoch_end(self):
-        metrics = self.get_full_sort_score(self.answer_list, self.pred_list)
+        pred_list = np.concatenate(self.pred_list, axis=0)
+        answer_list = np.concatenate(self.answer_list, axis=0)
+
+        metrics = self.get_full_sort_score(answer_list, pred_list)
         self.val_result = np.append(self.val_result, metrics[2])
+
+        self.pred_list.clear()
+        self.answer_list.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         user_ids, input_ids, _, _, answers = batch
         seq_output = self(input_ids)
         seq_output = seq_output[:, -1, :]
+
         rating_pred = self.sasrec.predict_full(seq_output)
 
         rating_pred = rating_pred.cpu().data.numpy().copy()
@@ -157,7 +160,12 @@ class SASRec(L.LightningModule):
 
         batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
+        self.rating_pred_list.append(rating_pred)
+
         return batch_pred_list
+
+    def on_predict_epoch_end(self) -> None:
+        self.rating_pred_list = np.concatenate(self.rating_pred_list, axis=0)
 
     def forward(self, input_ids):
         return self.sasrec.forward(input_ids)
