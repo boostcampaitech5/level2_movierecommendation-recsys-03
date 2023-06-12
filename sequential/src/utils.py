@@ -191,6 +191,7 @@ def generate_submission_file(config: Config, preds):
 
     sub_df.loc[:, "item"] = items
     sub_df.to_csv(sub_path, index=False)
+    wandb.save(sub_path)
 
 
 def get_user_seqs(train_dir, train_file):
