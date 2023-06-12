@@ -57,6 +57,13 @@ class Model:
 
 
 @dataclass
+class Wandb:
+    project: str
+    entity: str
+    name: str
+
+
+@dataclass
 class Config:
     timestamp: str
     seed: int
@@ -67,3 +74,4 @@ class Config:
     path: Path
     trainer: Trainer
     model: Model
+    Wandb: Wandb
