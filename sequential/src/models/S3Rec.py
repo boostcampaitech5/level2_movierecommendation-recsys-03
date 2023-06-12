@@ -13,16 +13,22 @@ class S3Rec(L.LightningModule):
         self.config = config
         self.sasrec = modules.SASRec(config)
         self.mask_id = config.data.mask_id
-        self.attr_size = self.config.data.attr_size
+        self.attr_size = config.data.attr_size
+        self.aap_weight = config.trainer.aap_weight
+        self.mip_weight = config.trainer.mip_weight
+        self.map_weight = config.trainer.map_weight
+        self.sp_weight = config.trainer.sp_weight
+        self.hidden_size = self.sasrec.hidden_size
+
         self.training_step_outputs = []
 
-        self.attr_embeddings = nn.Embedding(self.attr_size, self.sasrec.hidden_size, padding_idx=0)
+        self.attr_embeddings = nn.Embedding(self.attr_size, self.hidden_size, padding_idx=0)
 
         # add unique dense layer for 4 losses respectively
-        self.aap_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
-        self.mip_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
-        self.map_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
-        self.sp_norm = nn.Linear(self.sasrec.hidden_size, self.sasrec.hidden_size)
+        self.aap_norm = nn.Linear(self.hidden_size, self.hidden_size)
+        self.mip_norm = nn.Linear(self.hidden_size, self.hidden_size)
+        self.map_norm = nn.Linear(self.hidden_size, self.hidden_size)
+        self.sp_norm = nn.Linear(self.hidden_size, self.hidden_size)
         self.criterion = nn.BCELoss(reduction="none")
         self.apply(self.sasrec.init_weights)
 
@@ -170,12 +176,7 @@ class S3Rec(L.LightningModule):
         # get loss
         aap_loss, mip_loss, map_loss, sp_loss = self.compute_loss(aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq)
 
-        joint_loss = (
-            self.config.trainer.aap_weight * aap_loss
-            + self.config.trainer.mip_weight * mip_loss
-            + self.config.trainer.map_weight * map_loss
-            + self.config.trainer.sp_weight * sp_loss
-        )
+        joint_loss = self.aap_weight * aap_loss + self.mip_weight * mip_loss + self.map_weight * map_loss + self.sp_weight * sp_loss
 
         self.training_step_outputs.append(
             {"aap_loss": aap_loss.detach(), "mip_loss": mip_loss.detach(), "map_loss": map_loss.detach(), "sp_loss": sp_loss.detach()}
