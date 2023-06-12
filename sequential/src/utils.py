@@ -2,7 +2,8 @@ import json
 import math
 import os
 import random
-
+import wandb
+import dotenv
 import numpy as np
 import pandas as pd
 import torch
@@ -26,6 +27,75 @@ def set_seed(seed):
 def get_timestamp(date_format: str = "%d_%H%M%S") -> str:
     timestamp = datetime.now()
     return timestamp.strftime(date_format)
+
+
+def init_wandb(is_pretrain: bool, config: Config) -> None:
+    dotenv.load_dotenv()
+    WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
+    wandb.login(key=WANDB_API_KEY)
+
+    if is_pretrain:
+        run = wandb.init(
+            project=config.wandb.project + "Pretrain",
+            entity=config.wandb.entity,
+            name=config.wandb.name,
+        )
+    else:
+        run = wandb.init(
+            project=config.wandb.project + "Sequential",
+            entity=config.wandb.entity,
+            name=config.wandb.name,
+        )
+        run.tags = [config.model.model_name]
+
+
+def log_parameters(is_pretrain: bool, config: Config) -> None:
+    # model config
+    wandb.log(
+        {
+            "hidden_size": config.model.hidden_size,
+            "num_hidden_layers": config.model.num_hidden_layers,
+            "initializer_range": config.model.initializer_range,
+            "num_attention_heads": config.model.num_attention_heads,
+            "hidden_act": config.model.hidden_act,
+            "attention_probs_dropout_prob": config.model.attention_probs_dropout_prob,
+            "hidden_dropout_prob": config.model.hidden_dropout_prob,
+            "item_size": config.model.item_size,
+        }
+    )
+    # common trainer config
+    wandb.log(
+        {
+            "lr": config.trainer.lr,
+            "weight_decay": config.trainer.weight_decay,
+            "adam_beta1": config.trainer.adam_beta1,
+            "adam_beta2": config.trainer.adam_beta2,
+            "max_seq_length": config.data.max_seq_length,
+            "mask_p": config.data.mask_p,
+        }
+    )
+    if is_pretrain:
+        # pretrain config
+        wandb.log(
+            {
+                "aap_weight": config.trainer.aap_weight,
+                "mip_weight": config.trainer.mip_weight,
+                "map_weight": config.trainer.map_weight,
+                "sp_weight": config.trainer.sp_weight,
+                "batch_size": config.data.pre_batch_size,
+            }
+        )
+    else:
+        # finetune config
+        wandb.log(
+            {
+                "use_pretrain": config.trainer.use_pretrain,
+                "pretrain_version": config.trainer.pretrain_version,
+                "cv": config.trainer.cv,
+                "k": config.trainer.k,
+                "batch_size": config.data.batch_size,
+            }
+        )
 
 
 def check_dir(dir):
