@@ -1,0 +1,33 @@
+# pretrain
+is_pretrain: true
+
+# use pretrain
+use_pretrain: true
+
+# pretrain version
+pretrain_version: '1'
+
+# epoch for training
+epoch: 1
+
+# learning rate
+lr: 0.001
+
+# weight_decay for learning rate
+weight_decay: 0.0
+
+# weight of aap loss
+aap_weight: 0.2
+
+# weight of min loss
+mip_weight: 1.0
+
+# weight of map loss
+map_weight: 1.0
+
+# weight of sp loss
+sp_weight: 0.5
+
+# betas of adam optimizer
+adam_beta1: 0.9
+adam_beta2: 0.999
