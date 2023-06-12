@@ -74,4 +74,4 @@ class Config:
     path: Path
     trainer: Trainer
     model: Model
-    Wandb: Wandb
+    wandb: Wandb
