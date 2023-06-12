@@ -13,6 +13,7 @@ class SASRec(nn.Module):
         self.hidden_dropout_prob = self.config.model.hidden_dropout_prob
         self.initializer_range = self.config.model.initializer_range
         self.max_seq_length = self.config.data.max_seq_length
+        self.cuda_condition = self.config.cuda_condition
 
         self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(self.max_seq_length, self.hidden_size)
@@ -68,7 +69,7 @@ class SASRec(nn.Module):
         subsequent_mask = (subsequent_mask == 0).unsqueeze(1)
         subsequent_mask = subsequent_mask.long()
 
-        if self.config.cuda_condition:
+        if self.cuda_condition:
             subsequent_mask = subsequent_mask.cuda()
 
         extended_attention_mask = extended_attention_mask * subsequent_mask

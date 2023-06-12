@@ -160,6 +160,7 @@ class SASRecDataset(Dataset):
         self.config = config
         self.user_seq = user_seq
         self.data = data
+        self.item_size = self.config.data.item_size
         self.max_len = self.config.data.max_seq_length
         self.tensors = self.__prepare_data(data, user_seq)
 
@@ -181,7 +182,7 @@ class SASRecDataset(Dataset):
             target_neg = []
             seq_set = set(items)
             for _ in input_ids:
-                target_neg.append(neg_sample(seq_set, self.config.data.item_size))
+                target_neg.append(neg_sample(seq_set, self.item_size))
 
             # padding
             pad_len = self.max_len - len(input_ids)

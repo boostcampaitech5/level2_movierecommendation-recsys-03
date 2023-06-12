@@ -12,3 +12,4 @@ defaults:
   - path: default.yaml
   - trainer: default.yaml
   - model: SASRec.yaml
+  - wandb: default.yaml
