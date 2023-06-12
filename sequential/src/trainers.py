@@ -6,6 +6,7 @@ from src.dataloaders import KFoldDataModuleContainer
 import torch
 import lightning as L
 import copy
+import numpy as np
 
 
 class HoldoutTrainer:
@@ -116,7 +117,30 @@ class KFoldTrainer:
 
         return cv_score
 
-    def predict(self, fold: int):
-        # sub_predictions = self.fold_trainer.predict(self.fold_model, datamodule=self.fold_dm)
-        # generate_submission_file(self.config, sub_predictions, fold)
+    def predict(self):
+        outputs = []
+
+        for _, fold_trainer in enumerate(self.fold_trainers):
+            fold_trainer.predict()
+            outputs.append(fold_trainer.model.rating_pred_list)
+
+        test_prob, test_pred = self.__soft_voting(outputs)
+        rating_pred = test_pred
+
+        ind = np.argpartition(rating_pred, -10)[:, -10:]
+        arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
+        arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1]
+        oof_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
+
+        generate_submission_file(self.config, oof_pred_list)
+
+        # return oof_pred_list
+
+    def __soft_voting(self, df_list):
+        test_prob = np.mean(np.array(df_list), axis=0)
+        test_pred = np.where(test_prob >= 0.5, 1, 0)
+
+        return test_prob, test_pred
+
+    def test(self):
         pass
