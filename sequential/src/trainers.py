@@ -7,6 +7,7 @@ import torch
 import lightning as L
 import copy
 import numpy as np
+import wandb
 
 
 class HoldoutTrainer:
@@ -114,6 +115,7 @@ class KFoldTrainer:
 
         cv_score /= self.n_fold
         print(f"-----------------cv_recall@10_score: {cv_score}-----------------")
+        wandb.log({"cv_score": cv_score})
 
         return cv_score
 

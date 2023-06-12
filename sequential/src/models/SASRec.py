@@ -1,4 +1,5 @@
 import torch
+import wandb
 import numpy as np
 import lightning as L
 from torch.optim import Adam
@@ -75,6 +76,7 @@ class SASRec(L.LightningModule):
         self.log("rec_avg_loss", rec_avg_loss)
         self.log("rec_cur_loss", rec_cur_loss)
         self.tr_result.append({"rec_avg_loss": rec_avg_loss, "rec_cur_loss": rec_cur_loss})
+        wandb.log({"rec_avg_loss": rec_avg_loss, "rec_cur_loss": rec_cur_loss})
 
         self.training_step_outputs.clear()
 
@@ -104,8 +106,10 @@ class SASRec(L.LightningModule):
         answer_list = np.concatenate(self.answer_list, axis=0)
 
         metrics = self.get_full_sort_score(answer_list, pred_list)
-        self.log("Recall@10", metrics[2])
         self.val_result = np.append(self.val_result, metrics[2])
+
+        self.log("Recall@10", metrics[2])
+        wandb.log({"valid_Recall@10": metrics[2]})
 
         self.pred_list.clear()
         self.answer_list.clear()
@@ -137,6 +141,9 @@ class SASRec(L.LightningModule):
 
         metrics = self.get_full_sort_score(answer_list, pred_list)
         self.val_result = np.append(self.val_result, metrics[2])
+
+        self.log("Recall@10", metrics[2])
+        wandb.log({"test_valid_Recall@10": metrics[2]})
 
         self.pred_list.clear()
         self.answer_list.clear()
