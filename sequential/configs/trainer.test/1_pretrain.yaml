@@ -1,11 +1,17 @@
 # pretrain
-is_pretrain: false
+is_pretrain: true
 
 # use pretrain
 use_pretrain: true
 
 # pretrain version
 pretrain_version: '1'
+
+# cv option
+# cv or holdout
+cv: true
+# n_fold
+k: 5
 
 # epoch for training
 epoch: 1
