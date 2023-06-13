@@ -194,22 +194,6 @@ def generate_submission_file(config: Config, preds):
     wandb.save(sub_path)
 
 
-def update_predict_file(config: Config, preds: np.ndarray, fold: int) -> str:
-    check_dir(config.path.output_dir)
-
-    pred_path = os.path.join(config.path.output_dir, f"{config.timestamp}_{config.model.model_name}_pred.csv")
-
-    if fold != 0:
-        pred_df = np.loadtxt(pred_path)
-        preds = pred_df + preds
-    if (fold + 1) == config.trainer.k:
-        preds = preds / config.trainer.k
-
-    np.savetxt(pred_path, preds)
-
-    return pred_path
-
-
 def get_user_seqs(train_dir, train_file):
     data_path = os.path.join(train_dir, train_file)
 

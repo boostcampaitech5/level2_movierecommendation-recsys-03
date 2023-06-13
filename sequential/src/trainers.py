@@ -1,5 +1,4 @@
 from src.config import Config
-from src.utils import generate_submission_file, update_predict_file
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from src.dataloaders import KFoldDataModuleContainer
