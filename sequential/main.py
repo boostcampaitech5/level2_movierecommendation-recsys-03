@@ -3,7 +3,7 @@ import torch
 import wandb
 import os
 from src.config import Config
-from src.utils import get_timestamp, set_seed, init_wandb, log_parameters
+from src.utils import get_timestamp, set_seed, init_wandb, log_parameters, generate_submission_file
 from src.trainers import HoldoutTrainer, PretrainTrainer, KFoldTrainer
 from src.models import S3Rec, SASRec
 from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataModuleContainer
@@ -58,7 +58,9 @@ def main(config: Config = None) -> None:
 
     if not config.trainer.is_pretrain:
         trainer.test()
-        trainer.predict()
+        preds = trainer.predict()
+
+    generate_submission_file(config, preds)
 
     wandb.finish()
 

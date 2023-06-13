@@ -1,5 +1,5 @@
 from src.config import Config
-from src.utils import generate_submission_file
+from src.utils import generate_submission_file, update_predict_file
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from src.dataloaders import KFoldDataModuleContainer
@@ -39,7 +39,8 @@ class HoldoutTrainer:
     def predict(self):
         # inference
         preds = self.trainer.predict(self.model, datamodule=self.data_module)
-        generate_submission_file(self.config, preds)
+
+        return preds
 
     def test(self):
         self.trainer.test(self.model, datamodule=self.data_module)
@@ -95,7 +96,7 @@ class KFoldTrainer:
 
         for fold, fold_trainer in enumerate(self.fold_trainers):
             # print(f"------------- Fold {fold}  :  train {train_idx}, val {valid_idx} -------------")
-            print(f"------------- Fold {fold} -------------")
+            print(f"------------- Train Fold {fold} -------------")
 
             fold_trainer.train()
             fold_model = fold_trainer.model
@@ -110,7 +111,7 @@ class KFoldTrainer:
 
             val_recall = fold_model.val_result.mean()
 
-            print(f">>> >>> tr_avg_loss: {tr_avg_loss},tr_cur_loss: {tr_cur_loss}, val_recall@10: {val_recall}")
+            print(f">>> tr_avg_loss: {tr_avg_loss},tr_cur_loss: {tr_cur_loss}, val_recall@10: {val_recall}")
             cv_score += val_recall
 
         cv_score /= self.n_fold
@@ -120,29 +121,21 @@ class KFoldTrainer:
         return cv_score
 
     def predict(self):
-        outputs = []
+        for fold, fold_trainer in enumerate(self.fold_trainers):
+            print(f"-------------  Predict Fold {fold} -------------")
+            if fold == 0:
+                output = fold_trainer.predict()[0]
+            else:
+                output = output + fold_trainer.predict()[0]
 
-        for _, fold_trainer in enumerate(self.fold_trainers):
-            fold_trainer.predict()
-            outputs.append(fold_trainer.model.rating_pred_list)
-
-        test_prob, test_pred = self.__soft_voting(outputs)
-        rating_pred = test_pred
+        rating_pred = output / self.n_fold
 
         ind = np.argpartition(rating_pred, -10)[:, -10:]
         arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
         arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1]
         oof_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
-        generate_submission_file(self.config, oof_pred_list)
-
-        # return oof_pred_list
-
-    def __soft_voting(self, df_list):
-        test_prob = np.mean(np.array(df_list), axis=0)
-        test_pred = np.where(test_prob >= 0.5, 1, 0)
-
-        return test_prob, test_pred
+        return oof_pred_list
 
     def test(self):
         pass
