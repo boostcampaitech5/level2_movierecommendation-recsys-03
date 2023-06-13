@@ -11,4 +11,5 @@ defaults:
   - data: default.yaml
   - path: test.yaml
   - trainer: default.yaml
-  - model: S3Rec.yaml
+  - model: SASRec.yaml
+  - wandb: default.yaml
