@@ -19,7 +19,9 @@ class S3Rec(L.LightningModule):
         self.sp_weight = config.trainer.sp_weight
 
         self.base_module = modules.SASRec(config)
-        self.s3rec = modules.S3Rec(config, self.base_module)
+
+        self.attr_pred_module = modules.AttributePrediction(config.data.attr_size, config.model.hidden_size)
+        self.s3rec = modules.S3Rec(config, self.base_module, self.attr_pred_module)
 
         self.training_step_outputs = []
 
@@ -29,7 +31,7 @@ class S3Rec(L.LightningModule):
 
     def compute_loss(self, aap_score, mip_distance, map_score, sp_distance, attrs, masked_item_seq):
         ## AAP
-        aap_loss = self.criterion(aap_score, attrs.view(-1, self.s3rec.attr_size).float())
+        aap_loss = self.criterion(aap_score, attrs.view(-1, self.attr_pred_module.attr_size).float())
         # only compute loss at non-masked position
         aap_mask = (masked_item_seq != self.mask_id).float() * (masked_item_seq != 0).float()
         aap_loss = torch.sum(aap_loss * aap_mask.flatten().unsqueeze(-1))
@@ -40,7 +42,7 @@ class S3Rec(L.LightningModule):
         mip_loss = torch.sum(mip_loss * mip_mask.flatten())
 
         ## MAP
-        map_loss = self.criterion(map_score, attrs.view(-1, self.s3rec.attr_size).float())
+        map_loss = self.criterion(map_score, attrs.view(-1, self.attr_pred_module.attr_size).float())
         map_mask = (masked_item_seq == self.mask_id).float()
         map_loss = torch.sum(map_loss * map_mask.flatten().unsqueeze(-1))
 

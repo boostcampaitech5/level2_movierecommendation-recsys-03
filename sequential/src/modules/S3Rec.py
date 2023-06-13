@@ -3,21 +3,15 @@ import torch.nn as nn
 from src.config import Config
 
 
-class S3Rec(nn.Module):
-    def __init__(self, config: Config, base_module: nn.Module):
+class AttributePrediction(nn.Module):
+    def __init__(self, attr_size: int, hidden_size: int):
         super().__init__()
-        self.attr_size = config.data.attr_size
-        self.hidden_size = config.model.hidden_size
+        self.attr_size = attr_size
+        self.hidden_size = hidden_size
 
-        self.base_module = base_module
-        self.attr_embeddings = nn.Embedding(self.attr_size, self.hidden_size, padding_idx=0)
-
-        self.aap_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.mip_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.map_norm = nn.Linear(self.hidden_size, self.hidden_size)
-        self.sp_norm = nn.Linear(self.hidden_size, self.hidden_size)
-
-        self.base_module = base_module
+        self.attr_embeddings = nn.Embedding(attr_size, hidden_size, padding_idx=0)
+        self.aap_norm = nn.Linear(hidden_size, hidden_size)
+        self.map_norm = nn.Linear(hidden_size, hidden_size)
 
     # AAP
     def associated_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
@@ -27,10 +21,40 @@ class S3Rec(nn.Module):
         :return: scores [B*L tag_num]
         """
         seq_output = self.aap_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.base_module.hidden_size, 1])  # [B*L H 1]
+        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
         # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
         score = torch.matmul(attr_embedding, seq_output)
         return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
+
+    # MAP
+    def masked_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
+        seq_output = self.map_norm(seq_output)  # [B L H]
+        seq_output = seq_output.view([-1, self.hidden_size, 1])  # [B*L H 1]
+        # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
+        score = torch.matmul(attr_embedding, seq_output)
+        return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
+
+    def forward(self, seq_output) -> torch.Tensor:
+        attr_embeddings = self.attr_embeddings.weight
+
+        # AAP
+        aap_score = self.associated_attr_prediction(seq_output, attr_embeddings)
+        # MAP
+        map_score = self.masked_attr_prediction(seq_output, attr_embeddings)
+
+        return aap_score, map_score
+
+
+class S3Rec(nn.Module):
+    def __init__(self, config: Config, base_module: nn.Module, attr_pred_module: AttributePrediction):
+        super().__init__()
+        self.hidden_size = config.model.hidden_size
+
+        self.base_module = base_module
+        self.attr_pred_module = attr_pred_module
+
+        self.mip_norm = nn.Linear(self.hidden_size, self.hidden_size)
+        self.sp_norm = nn.Linear(self.hidden_size, self.hidden_size)
 
     # MIP sample neg items
     def masked_item_prediction(self, seq_output, target_item) -> torch.Tensor:
@@ -39,18 +63,10 @@ class S3Rec(nn.Module):
         :param target_item: [B L H]
         :return: scores [B*L]
         """
-        seq_output = self.mip_norm(seq_output.view([-1, self.base_module.hidden_size]))  # [B*L H]
-        target_item = target_item.view([-1, self.base_module.hidden_size])  # [B*L H]
+        seq_output = self.mip_norm(seq_output.view([-1, self.hidden_size]))  # [B*L H]
+        target_item = target_item.view([-1, self.hidden_size])  # [B*L H]
         score = torch.mul(seq_output, target_item)  # [B*L H]
         return torch.sigmoid(torch.sum(score, -1))  # [B*L]
-
-    # MAP
-    def masked_attr_prediction(self, seq_output, attr_embedding) -> torch.Tensor:
-        seq_output = self.map_norm(seq_output)  # [B L H]
-        seq_output = seq_output.view([-1, self.base_module.hidden_size, 1])  # [B*L H 1]
-        # [tag_num H] [B*L H 1] -> [B*L tag_num 1]
-        score = torch.matmul(attr_embedding, seq_output)
-        return torch.sigmoid(score.squeeze(-1))  # [B*L tag_num]
 
     # SP sample neg segment
     def segment_prediction(self, context, segment) -> torch.Tensor:
@@ -81,9 +97,8 @@ class S3Rec(nn.Module):
         # [B L H]
         seq_output = encoded_layers[-1]
 
-        attr_embeddings = self.attr_embeddings.weight
-        # AAP
-        aap_score = self.associated_attr_prediction(seq_output, attr_embeddings)
+        # AAP + MAP
+        aap_score, map_score = self.attr_pred_module.forward(seq_output)
 
         # MIP
         pos_item_embs = self.base_module.item_embeddings(pos_items)
@@ -91,9 +106,6 @@ class S3Rec(nn.Module):
         pos_score = self.masked_item_prediction(seq_output, pos_item_embs)
         neg_score = self.masked_item_prediction(seq_output, neg_item_embs)
         mip_distance = torch.sigmoid(pos_score - neg_score)
-
-        # MAP
-        map_score = self.masked_attr_prediction(seq_output, attr_embeddings)
 
         # SP
         # segment context
