@@ -17,7 +17,6 @@ class SASRec(L.LightningModule):
         self.sasrec = modules.SASRec(config)
         self.pred_list = []
         self.answer_list = []
-        self.rating_pred_list = []
         self.valid_matrix = valid_matrix
         self.test_matrix = test_matrix
         self.submission_matrix = submission_matrix
@@ -159,20 +158,7 @@ class SASRec(L.LightningModule):
         batch_user_index = user_ids.cpu().numpy()
         rating_pred[self.submission_matrix[batch_user_index].toarray() > 0] = 0
 
-        ind = np.argpartition(rating_pred, -10)[:, -10:]
-
-        arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
-
-        arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1]
-
-        batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
-
-        self.rating_pred_list.append(rating_pred)
-
-        return batch_pred_list
-
-    def on_predict_epoch_end(self) -> None:
-        self.rating_pred_list = np.concatenate(self.rating_pred_list, axis=0)
+        return rating_pred
 
     def forward(self, input_ids):
         return self.sasrec.forward(input_ids)
