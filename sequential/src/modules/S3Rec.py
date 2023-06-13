@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from src.config import Config
+from typing import Sequence
 
 
 class AttributePrediction(nn.Module):
@@ -46,12 +47,12 @@ class AttributePrediction(nn.Module):
 
 
 class S3Rec(nn.Module):
-    def __init__(self, config: Config, base_module: nn.Module, attr_pred_module: AttributePrediction):
+    def __init__(self, config: Config, base_module: nn.Module, attr_pred_modules: Sequence[AttributePrediction] | nn.ModuleList):
         super().__init__()
         self.hidden_size = config.model.hidden_size
 
         self.base_module = base_module
-        self.attr_pred_module = attr_pred_module
+        self.attr_pred_modules = attr_pred_modules
 
         self.mip_norm = nn.Linear(self.hidden_size, self.hidden_size)
         self.sp_norm = nn.Linear(self.hidden_size, self.hidden_size)
@@ -87,7 +88,7 @@ class S3Rec(nn.Module):
         masked_segment_seq,
         pos_segment,
         neg_segment,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[list[torch.Tensor], list[torch.Tensor], torch.Tensor, torch.Tensor]:
         # Encode masked seq
         seq_emb = self.base_module.make_seq_embedding(masked_item_seq)
         seq_mask = (masked_item_seq == 0).float() * -1e8
@@ -98,7 +99,11 @@ class S3Rec(nn.Module):
         seq_output = encoded_layers[-1]
 
         # AAP + MAP
-        aap_score, map_score = self.attr_pred_module.forward(seq_output)
+        aap_scores, map_scores = [], []
+        for attr_pred_module in self.attr_pred_modules:
+            aap_score, map_score = attr_pred_module.forward(seq_output)
+            aap_scores.append(aap_score)
+            map_scores.append(map_score)
 
         # MIP
         pos_item_embs = self.base_module.item_embeddings(pos_items)
@@ -135,4 +140,4 @@ class S3Rec(nn.Module):
 
         sp_distance = torch.sigmoid(pos_segment_score - neg_segment_score)
 
-        return aap_score, mip_distance, map_score, sp_distance
+        return aap_scores, map_scores, mip_distance, sp_distance
