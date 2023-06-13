@@ -20,7 +20,7 @@ def test_main(*args, **kwargs):
             model_config = omegaconf.OmegaConf.load(model_path)
             config.model = model_config
 
-            for trainer_path in os.listdir("configs/trainer.test"):
+            for trainer_path in sorted(os.listdir("configs/trainer.test")):
                 trainer_path = os.path.join("configs/trainer.test", trainer_path)
 
                 trainer_config = omegaconf.OmegaConf.load(trainer_path)
