@@ -16,6 +16,7 @@ def get_trainer(config: Config):
     if config.trainer.is_pretrain:
         datamodule = S3RecDataModule(config)
         datamodule.prepare_data()
+
         model = S3Rec(config)
 
         pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
@@ -60,7 +61,7 @@ def main(config: Config = None) -> None:
         trainer.test()
         preds = trainer.predict()
 
-    generate_submission_file(config, preds)
+        generate_submission_file(config, preds)
 
     wandb.finish()
 
