@@ -186,6 +186,7 @@ class S3Rec(L.LightningModule):
                 "avg_mip_loss": mip_loss.detach() / batch_size,
                 "avg_map_loss": map_loss.detach() / batch_size,
                 "avg_sp_loss": sp_loss.detach() / batch_size,
+                "avg_joint_loss": joint_loss.detach() / batch_size,
             }
         )
 
@@ -196,13 +197,23 @@ class S3Rec(L.LightningModule):
         avg_mip_loss = torch.stack([x["avg_mip_loss"] for x in self.training_step_outputs]).mean()
         avg_map_loss = torch.stack([x["avg_map_loss"] for x in self.training_step_outputs]).mean()
         avg_sp_loss = torch.stack([x["avg_sp_loss"] for x in self.training_step_outputs]).mean()
+        avg_joint_loss = torch.stack([x["avg_joint_loss"] for x in self.training_step_outputs]).mean()
 
         self.log("avg_aap_loss", avg_aap_loss)
         self.log("avg_mip_loss", avg_mip_loss)
         self.log("avg_map_loss", avg_map_loss)
         self.log("avg_sp_loss", avg_sp_loss)
+        self.log("avg_joint_loss", avg_joint_loss)
 
-        wandb.log({"avg_aap_loss": avg_aap_loss, "avg_mip_loss": avg_mip_loss, "avg_map_loss": avg_map_loss, "avg_sp_loss": avg_sp_loss})
+        wandb.log(
+            {
+                "avg_aap_loss": avg_aap_loss,
+                "avg_mip_loss": avg_mip_loss,
+                "avg_map_loss": avg_map_loss,
+                "avg_sp_loss": avg_sp_loss,
+                "avg_joint_loss": avg_joint_loss,
+            }
+        )
 
         self.training_step_outputs.clear()
 
