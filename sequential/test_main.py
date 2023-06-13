@@ -3,8 +3,14 @@ import os
 import omegaconf
 from src.config import Config
 from main import main
+from unittest.mock import patch
 
 
+@patch("wandb.init")
+@patch("wandb.login")
+@patch("wandb.log")
+@patch("wandb.finish")
+@patch("wandb.save")
 def test_main(*args, **kwargs):
     @hydra.main(version_base="1.2", config_path="configs", config_name="test.yaml")
     def inner_main(config: Config) -> None:
