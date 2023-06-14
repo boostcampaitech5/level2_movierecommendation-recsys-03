@@ -1,0 +1,11 @@
+# path to train data directory
+train_dir: ../data/train/
+# path to eval data directory
+eval_dir: ../data/eval/
+# path to output directory
+output_dir: output/
+
+# train data file name
+train_file: train_ratings.csv
+# eval data file name
+eval_file: sample_submission.csv
