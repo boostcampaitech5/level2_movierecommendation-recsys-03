@@ -21,6 +21,7 @@ key
 
 # hydra outputs
 tabular/outputs
+autoencoder/outputs
 /outputs
 
 # lightning
@@ -28,3 +29,4 @@ tabular/outputs
 
 # wandb outputs
 tabular/wandb
+autoencoder/wandb
