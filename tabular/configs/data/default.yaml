@@ -1,14 +1,12 @@
 # data version
 training_version: v2_
-directors_version : v2_
+dir_version : v2_
 writers_version : v2_
 years_version : v2_
 
 features:
   - user
   - item
-  - time
-  - title
   - year
   - writer
   - director
