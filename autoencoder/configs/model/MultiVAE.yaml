@@ -1,11 +1,10 @@
-optimizer:
-  - lr: 1e-4
-  - wd: 0.00
-
-anneal:
-  - total_anneal_step: 200000
-  - anneal_cap: 0.2
-
-- model_name: MultiVAE
-- p_dims: [200, 600, 6807]
-- dropout: 0.5
+# model
+model_name: MultiVAE
+p_dims: [200, 600, 6807]
+dropout: 0.5
+# optimizer
+lr: 1e-4
+wd: 0.00
+# anneal
+total_anneal_step: 200000
+anneal_cap: 0.2
