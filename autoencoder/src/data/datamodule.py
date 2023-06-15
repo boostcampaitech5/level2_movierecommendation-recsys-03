@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 import pandas as pd
 import lightning as L
 from torch.utils.data import DataLoader
@@ -14,6 +15,8 @@ class DataModule(L.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.train_dir = config.path.train_dir
+        self.train_file = config.path.train_file
         self.batch_size = config.data.batch_size
         self.num_workers = config.data.num_workers
 
@@ -27,7 +30,7 @@ class DataModule(L.LightningDataModule):
         self.predict_dataset: Optional[TrainDataset] = None
 
     def prepare_data(self):
-        self.raw_data = pd.read_csv("~/input/data/train/train_ratings.csv")
+        self.raw_data = pd.read_csv(os.path.join(self.train_dir, self.train_file))
         self.indexer: dict = generate_user_item_indexer(self.raw_data)
 
     def setup(self, stage: Optional[str] = None):
