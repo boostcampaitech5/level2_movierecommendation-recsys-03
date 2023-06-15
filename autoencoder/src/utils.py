@@ -29,7 +29,7 @@ def init_wandb(config) -> None:
     wandb.login(key=WANDB_API_KEY)
 
     run = wandb.init(
-        project=config.wandb.project + "ae",
+        project=config.wandb.project + "AutoEncoder",
         entity=config.wandb.entity,
         name=config.wandb.name,
     )
