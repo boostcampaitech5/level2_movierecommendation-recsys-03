@@ -1,7 +1,8 @@
 import os
-import tqdm
+import random
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from omegaconf import DictConfig
 from sklearn.model_selection import GroupKFold
 
@@ -14,7 +15,7 @@ class TabularDataModule:
 
         self.train_data = None
         self.valid_data = None
-        self.test_data = None
+        self.pred_frame_df = None
 
         self.prepare_data()
         self.setup()
@@ -56,7 +57,7 @@ class TabularDataModule:
         self.v2_tr_director = pd.read_csv(os.path.join(self.config.path.train_dir, v_directors), sep="\t")
 
         v_years = self.config.data.years_version + self.config.path.year_file
-        self.v2_tr_writer = pd.read_csv(os.path.join(self.config.path.train_dir, v_years), sep="\t")
+        self.v2_tr_year = pd.read_csv(os.path.join(self.config.path.train_dir, v_years), sep="\t")
 
     def setup(self):
         """
@@ -67,21 +68,34 @@ class TabularDataModule:
         self.total_df = self.merge_total_data()
 
         # define important features
-        self.user_col, self.item_col, self.target_col = "user", "item", "relvance"
+        self.user_col, self.item_col, self.target_col = "user", "item", "relevance"
         self.features = list(self.config.data.features)
 
-        splitter = GroupKFold(n_splits=self.config.trainer.k)
+        # create KFold dataset (train_data, valid_data)
+        splitter = GroupKFold(n_splits=self.config.trainer.kfold)
 
         if self.config.trainer.cv_strategy == "kfold":
-            train_kfold, valid_kfold = [], []
+            self.train_kfold, self.valid_kfold = [], []
             for train_idx, valid_idx in splitter.split(self.total_df, groups=self.total_df["user"]):
-                train_kfold.append(self.total_df.loc[train_idx])
-                valid_kfold.append(self.total_df.loc[valid_idx])
+                self.train_kfold.append(self.total_df.loc[train_idx])
+                self.valid_kfold.append(self.total_df.loc[valid_idx])
 
-            self.train_data = [TabularDataset(df, self.features, self.target_col) for df in train_kfold]
-            self.valid_data = [TabularDataset(df, self.features, self.target_col) for df in valid_kfold]
+            self.train_data = [TabularDataset(df, self.features, self.target_col) for df in self.train_kfold]
+            self.valid_data = [TabularDataset(df, self.features, self.target_col) for df in self.valid_kfold]
         else:
             raise Exception("Invalid cv strategy is entered")
+
+        # create prediction frame df (pred_frame_df)
+        self.pred_frame_df = self.tr_title.copy()
+        self.pred_frame_df = pd.merge(self.pred_frame_df, self.v2_tr_year, on=["item"], how="outer")
+        self.pred_frame_df = pd.merge(self.pred_frame_df, self.v2_tr_writer, on=["item"], how="outer")
+        self.pred_frame_df = pd.merge(self.pred_frame_df, self.v2_tr_director, on=["item"], how="outer")
+        onthot_genre = pd.get_dummies(self.tr_genre, columns=["genre"]).groupby("item").sum()
+        self.pred_frame_df = pd.merge(self.pred_frame_df, onthot_genre, on=["item"], how="outer")
+
+        self.pred_frame_df["year"] = self.pred_frame_df["writer"].astype("category")
+        self.pred_frame_df["writer"] = self.pred_frame_df["writer"].astype("category")
+        self.pred_frame_df["director"] = self.pred_frame_df["writer"].astype("category")
 
     def generate_top_writer(self):
         """
@@ -169,6 +183,7 @@ class TabularDataModule:
         """
         - generate negative sampling
         """
+        print(">>> generating negative sampling ...")
         total_item_set = set(df["item"].unique())
 
         neg_samples = []
@@ -185,6 +200,7 @@ class TabularDataModule:
         return pd.DataFrame(neg_samples, columns=["user", "item", "relevance"])
 
     def merge_total_data(self) -> pd.DataFrame:
+        print(">>> merging whole dataframe to total_df ...")
         tr_rating_notime_df = self.tr_rating.drop(columns="time")
         tr_rating_notime_df["relevance"] = 1
 

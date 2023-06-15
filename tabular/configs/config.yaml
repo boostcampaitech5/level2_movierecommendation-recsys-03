@@ -8,3 +8,4 @@ defaults:
   - trainer: default.yaml
   - sweep: default.yaml
   - wandb: default.yaml
+  - model: LGBMClassifier.yaml
