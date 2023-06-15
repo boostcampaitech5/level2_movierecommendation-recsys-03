@@ -9,7 +9,7 @@ cuda_condition:
 defaults:
   - _self_
   - data: default.yaml
-  - path: default.yaml
+  - path: test.yaml
   - trainer: default.yaml
   - model: SASRec.yaml
   - wandb: default.yaml

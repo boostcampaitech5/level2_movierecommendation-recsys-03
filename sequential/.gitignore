@@ -6,3 +6,8 @@
 
 # model file
 /output
+
+# wandb
+/wandb
+
+
