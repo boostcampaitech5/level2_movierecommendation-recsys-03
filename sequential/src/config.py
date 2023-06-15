@@ -30,6 +30,8 @@ class Trainer:
     is_pretrain: bool
     use_pretrain: bool
     pretrain_version: str
+    cv: bool
+    k: int
     epoch: int
     lr: float
     weight_decay: float
@@ -55,6 +57,13 @@ class Model:
 
 
 @dataclass
+class Wandb:
+    project: str
+    entity: str
+    name: str
+
+
+@dataclass
 class Config:
     timestamp: str
     seed: int
@@ -65,3 +74,4 @@ class Config:
     path: Path
     trainer: Trainer
     model: Model
+    wandb: Wandb

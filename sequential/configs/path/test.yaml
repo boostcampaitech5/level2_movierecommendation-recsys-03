@@ -1,0 +1,15 @@
+# path to train data directory
+train_dir: ../data/dummy/
+# path to eval data directory
+eval_dir: ../data/dummy/
+# path to output directory
+output_dir: output/dummy
+
+# train data file name
+train_file: train_ratings.csv
+# eval data file name
+eval_file: sample_submission.csv
+# item attributes file name
+attr_file: item2attributes.json
+# model checkpoint file name
+pretrain_file: pretrain
