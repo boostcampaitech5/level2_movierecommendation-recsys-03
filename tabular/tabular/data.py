@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from omegaconf import DictConfig
 from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import train_test_split
 
 pd.set_option("mode.chained_assignment", None)  # warning off
 
@@ -71,17 +72,21 @@ class TabularDataModule:
         self.user_col, self.item_col, self.target_col = "user", "item", "relevance"
         self.features = list(self.config.data.features)
 
-        # create KFold dataset (train_data, valid_data)
-        splitter = GroupKFold(n_splits=self.config.trainer.kfold)
-
         if self.config.trainer.cv_strategy == "kfold":
             self.train_kfold, self.valid_kfold = [], []
+            splitter = GroupKFold(n_splits=self.config.trainer.kfold)
+
             for train_idx, valid_idx in splitter.split(self.total_df, groups=self.total_df["user"]):
                 self.train_kfold.append(self.total_df.loc[train_idx])
                 self.valid_kfold.append(self.total_df.loc[valid_idx])
 
             self.train_data = [TabularDataset(df, self.features, self.target_col) for df in self.train_kfold]
             self.valid_data = [TabularDataset(df, self.features, self.target_col) for df in self.valid_kfold]
+        elif self.config.trainer.cv_strategy == "holdout":
+            train, valid = train_test_split(self.total_df, test_size=0.2, random_state=42)
+
+            self.train_data = TabularDataset(train, self.features, self.target_col)
+            self.valid_data = TabularDataset(valid, self.features, self.target_col)
         else:
             raise Exception("Invalid cv strategy is entered")
 

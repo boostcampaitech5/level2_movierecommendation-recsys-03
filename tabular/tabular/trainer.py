@@ -6,6 +6,7 @@ from tqdm import tqdm
 from omegaconf import DictConfig
 import lightgbm as lgb
 from catboost import CatBoostClassifier
+from sklearn.model_selection import train_test_split
 
 from .data import TabularDataModule, TabularDataset
 
@@ -47,7 +48,20 @@ def cv_trainer(config: DictConfig):
 def trainer(config: DictConfig):
     dm = TabularDataModule(config)
 
+    model = create_model(config.model.name)
+    model.fit(
+        X=dm.train_data.X,
+        y=dm.train_data.y,
+        eval_set=[(dm.valid_data.X, dm.valid_data.y)],
+        verbose=10,
+        early_stopping_rounds=50,
+    )
+
+    submit_df = inference(dm=dm, is_cv=False, k=config.trainer.rank_k, models=[model])
+
     createFolder(config.path.output_dir)
+    output_name = config.wandb.name + "_" + config.model.name + ".csv"
+    submit_df.to_csv(os.path.join(config.path.output_dir, output_name), index=False)
 
 
 def create_model(model_name: str):
@@ -91,7 +105,7 @@ def inference(dm: TabularDataModule, is_cv: False, k: int, models=None) -> pd.Da
 
             topk_idx = np.argsort(cv_proba)[::-1][:k]
         else:
-            preds_proba = model.predict_proba(pred_df[dm.features])
+            preds_proba = models[0].predict_proba(pred_df[dm.features])
             topk_idx = np.argsort(preds_proba[:, 1])[::-1][:k]
 
         recommend_df = pred_df.iloc[topk_idx].reset_index(drop=True)
