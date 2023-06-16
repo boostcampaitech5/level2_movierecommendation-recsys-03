@@ -10,6 +10,11 @@ train_file: train_ratings.csv
 # eval data file name
 eval_file: sample_submission.csv
 # item attributes file name
-attr_file: item2attributes.json
+attr_files: 
+  # directors: item2directors.json
+  genres: item2genres.json
+  # titles:  item2titles.json
+  # writers:  item2writers.json
+  # years:  item2years.json
 # model checkpoint file name
 pretrain_file: pretrain

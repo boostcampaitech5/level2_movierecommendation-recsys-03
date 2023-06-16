@@ -17,12 +17,12 @@ def get_trainer(config: Config):
         datamodule = S3RecDataModule(config)
         datamodule.prepare_data()
 
-        model = S3Rec(config)
+        model = S3Rec(config, datamodule.name2attr_size)
 
         pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
         pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
 
-        return PretrainTrainer(config, model, datamodule, "avg_sp_loss", "min", pretrain_path)
+        return PretrainTrainer(config, model, datamodule, "avg_joint_loss", "min", pretrain_path)
     if config.model.model_name == "SASRec":
         datamodule = SASRecDataModule(config)
         datamodule.prepare_data()

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from src.config import Config
-from typing import Sequence
+from typing import Mapping
 
 
 class AttributePrediction(nn.Module):
@@ -47,7 +47,7 @@ class AttributePrediction(nn.Module):
 
 
 class S3Rec(nn.Module):
-    def __init__(self, config: Config, base_module: nn.Module, attr_pred_modules: Sequence[AttributePrediction] | nn.ModuleList):
+    def __init__(self, config: Config, base_module: nn.Module, attr_pred_modules: Mapping[str, AttributePrediction] | nn.ModuleDict):
         super().__init__()
         self.hidden_size = config.model.hidden_size
 
@@ -88,7 +88,7 @@ class S3Rec(nn.Module):
         masked_segment_seq,
         pos_segment,
         neg_segment,
-    ) -> tuple[list[torch.Tensor], list[torch.Tensor], torch.Tensor, torch.Tensor]:
+    ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
         # Encode masked seq
         seq_emb = self.base_module.make_seq_embedding(masked_item_seq)
         seq_mask = (masked_item_seq == 0).float() * -1e8
@@ -99,11 +99,12 @@ class S3Rec(nn.Module):
         seq_output = encoded_layers[-1]
 
         # AAP + MAP
-        aap_scores, map_scores = [], []
-        for attr_pred_module in self.attr_pred_modules:
+        aap_scores, map_scores = {}, {}
+
+        for attr_name, attr_pred_module in self.attr_pred_modules.items():
             aap_score, map_score = attr_pred_module.forward(seq_output)
-            aap_scores.append(aap_score)
-            map_scores.append(map_score)
+            aap_scores[attr_name] = aap_score
+            map_scores[attr_name] = map_score
 
         # MIP
         pos_item_embs = self.base_module.item_embeddings(pos_items)
