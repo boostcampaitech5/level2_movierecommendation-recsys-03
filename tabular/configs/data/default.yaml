@@ -1,4 +1,31 @@
 # data version
-directors_data_version : v1
-writers_data_version : v1
-years_data_version : v1
+training_version: v2_
+dir_version : v2_
+writers_version : v2_
+years_version : v2_
+
+features:
+  - user
+  - item
+  - year
+  - writer
+  - director
+  - genre_Action
+  - genre_Adventure
+  - genre_Animation
+  - genre_Children
+  - genre_Comedy
+  - genre_Crime
+  - genre_Documentary
+  - genre_Drama
+  - genre_Fantasy
+  - genre_Film-Noir
+  - genre_Horror
+  - genre_Musical
+  - genre_Mystery
+  - genre_Romance
+  - genre_Sci-Fi
+  - genre_Thriller
+  - genre_War
+  - genre_Western
+  

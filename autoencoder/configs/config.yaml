@@ -1,11 +1,10 @@
+timestamp:
 seed: 42
-timestamp: 
 
 defaults:
   - _self_
-  - data: default.yaml
   - path: default.yaml
+  - data: default.yaml
+  - model: MultiVAE.yaml
   - trainer: default.yaml
-  - sweep: default.yaml
   - wandb: default.yaml
-  - model: LGBMClassifier.yaml

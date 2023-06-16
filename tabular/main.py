@@ -4,6 +4,8 @@ import hydra
 import dotenv
 from omegaconf import DictConfig
 
+from tabular.data import TabularDataModule, TabularDataset
+from tabular.trainer import cv_trainer, trainer
 from tabular.utils import set_seeds, get_timestamp
 
 
@@ -24,6 +26,14 @@ def main(config: DictConfig = None) -> None:
         entity=config.wandb.entity,
         name=config.wandb.name,
     )
+    run.tags = [config.model.name, config.trainer.cv_strategy]
+
+    if config.trainer.cv_strategy == "kfold":
+        cv_trainer(config)
+    elif config.trainer.cv_strategy == "holdout":
+        trainer(config)
+    else:
+        raise Exception("Invalid cv strategy is entered")
 
     wandb.finish()
 

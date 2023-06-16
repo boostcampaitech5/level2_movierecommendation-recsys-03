@@ -2,7 +2,7 @@
 cv_strategy: kfold
 
 # k value of k-fold cross validation
-k: 5
+kfold: 5
 
-# epoch for training
-epoch: 10
+# ranking of k
+rank_k: 10

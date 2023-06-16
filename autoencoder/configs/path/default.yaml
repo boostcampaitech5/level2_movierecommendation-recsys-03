@@ -7,11 +7,5 @@ output_dir: output/
 
 # train data file name
 train_file: train_ratings.csv
-title_file: titles.tsv
-year_file: years.tsv
-writer_file: writers.tsv
-genre_file: genres.tsv
-director_file: directors.tsv
-
 # eval data file name
 eval_file: sample_submission.csv
