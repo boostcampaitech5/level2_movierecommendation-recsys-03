@@ -1,0 +1,7 @@
+recbole==1.0.1
+pandas==2.0.2
+numpy==1.23
+wandb==0.15.2
+torch
+python-dotenv==1.0.0
+pytest==7.3.2
