@@ -145,10 +145,10 @@ class TabularDataModule:
 
         for item in self.tr_director["item"].unique():
             tmp = self.tr_director[self.tr_director["item"] == item]
-            if tmp.shape[0] >= 2:  # 감독이 2명 이상일 때
+            if tmp.shape[0] >= 2:  # when director is more than two
                 tmp["count"] = tmp["director"].apply(lambda x: dir_ratio_df[dir_ratio_df["director"] == x]["count"].item())
                 dir_cnt = pd.concat([dir_cnt, tmp], ignore_index=True)
-            else:  # 감독이 한 명일 때
+            else:  # when director is just one
                 dir_cnt.loc[dir_cnt.shape[0]] = [
                     tmp["item"].item(),
                     tmp["director"].item(),

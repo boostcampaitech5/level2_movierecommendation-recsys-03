@@ -16,16 +16,17 @@ def main(config: DictConfig = None) -> None:
     config.wandb.name = f"work-{get_timestamp()}"
     set_seeds(config.seed)
 
-    # # wandb init
-    # dotenv.load_dotenv()
-    # WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
-    # wandb.login(key=WANDB_API_KEY)
+    # wandb init
+    dotenv.load_dotenv()
+    WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
+    wandb.login(key=WANDB_API_KEY)
 
-    # run = wandb.init(
-    #     project=config.wandb.project,
-    #     entity=config.wandb.entity,
-    #     name=config.wandb.name,
-    # )
+    run = wandb.init(
+        project=config.wandb.project,
+        entity=config.wandb.entity,
+        name=config.wandb.name,
+    )
+    run.tags = [config.model.name, config.trainer.cv_strategy]
 
     if config.trainer.cv_strategy == "kfold":
         cv_trainer(config)
@@ -34,7 +35,7 @@ def main(config: DictConfig = None) -> None:
     else:
         raise Exception("Invalid cv strategy is entered")
 
-    # wandb.finish()
+    wandb.finish()
 
 
 @hydra.main(version_base="1.2", config_path="configs", config_name="config.yaml")

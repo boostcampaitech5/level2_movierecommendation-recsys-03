@@ -1,5 +1,5 @@
 import os
-import time
+import wandb
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -35,15 +35,6 @@ def cv_trainer(config: DictConfig):
     output_name = config.wandb.name + "_" + "CV_" + config.model.name + ".csv"
     submit_df.to_csv(os.path.join(config.path.output_dir, output_name), index=False)
 
-    # for trainset, validset in zip(dm.train_data, dm.valid_data):
-    #     model = CatBoostClassifier(iterations = 2,
-    #                                depth = 2,
-    #                                learning_rate = 1,
-    #                                loss_function='MultiClass',
-    #                                verbose=True)
-
-    #     model.fit(trainset.X, trainset.y)
-
 
 def trainer(config: DictConfig):
     dm = TabularDataModule(config)
@@ -67,8 +58,6 @@ def trainer(config: DictConfig):
 def create_model(model_name: str):
     if model_name == "LGBMClassifier":
         model = lgb.LGBMClassifier()
-    elif model_name == "CatBoost":
-        model = CatBoostClassifier()
     else:
         raise Exception("Invalid model_name is entered :", model_name)
 
