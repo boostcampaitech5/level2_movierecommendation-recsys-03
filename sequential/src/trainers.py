@@ -39,7 +39,7 @@ class HoldoutTrainer:
         # inference
         preds = self.trainer.predict(self.model, datamodule=self.data_module)
 
-        return preds
+        return np.concatenate(preds)
 
     def test(self):
         self.trainer.test(self.model, datamodule=self.data_module)
@@ -94,7 +94,6 @@ class KFoldTrainer:
         cv_score = 0.0
 
         for fold, fold_trainer in enumerate(self.fold_trainers):
-            # print(f"------------- Fold {fold}  :  train {train_idx}, val {valid_idx} -------------")
             print(f"------------- Train Fold {fold} -------------")
 
             fold_trainer.train()
@@ -123,9 +122,9 @@ class KFoldTrainer:
         for fold, fold_trainer in enumerate(self.fold_trainers):
             print(f"-------------  Predict Fold {fold} -------------")
             if fold == 0:
-                output = fold_trainer.predict()[0]
+                output = fold_trainer.predict()
             else:
-                output = output + fold_trainer.predict()[0]
+                output = output + fold_trainer.predict()
 
         rating_pred = output / self.n_fold
 
