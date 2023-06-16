@@ -22,6 +22,3 @@ outputs
 
 # wandb log outputs
 wandb
-
-# catboost log outputs
-catboost_info
