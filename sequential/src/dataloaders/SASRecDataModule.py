@@ -113,7 +113,7 @@ class SASRecKFoldDataModule(SASRecDataModule, KFoldDataModule):
         if stage == "fit" or stage is None:
             idx = self.fold + 1
             train_idx = -1 * idx
-            valid_idx = idx - 1
+            valid_idx = 1 - idx
 
             # train
             self.train_data = {
