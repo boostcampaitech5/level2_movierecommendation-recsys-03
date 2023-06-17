@@ -31,7 +31,7 @@ class Recommender(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        return self._shared_eval_step(batch, batch_idx, "valid")
+        return self._shared_eval_step(batch, batch_idx, "val")
 
     def test_step(self, batch, batch_idx):
         return self._shared_eval_step(batch, batch_idx, "test")
@@ -58,15 +58,13 @@ class Recommender(L.LightningModule):
 
     @torch.no_grad()
     def _shared_eval_step(self, batch, batch_idx, prefix):
-        x, target_x = batch
+        x, _ = batch
         x_hat, mu, logvar = self.model(x)
 
-        loss = self._compute_loss(x_hat, x, mu, logvar, self.anneal)
-        # recall_at_k = self._recall_at_k_batch(x_hat, target_x, 10)
+        loss = self._compute_loss(x, x_hat, mu, logvar, self.anneal)
 
         log_dict = {
             f"{prefix}_loss": loss,
-            # f"{prefix}_recall@10": recall_at_k
         }
 
         self.log_dict(log_dict)
