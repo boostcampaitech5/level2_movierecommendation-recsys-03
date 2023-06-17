@@ -27,7 +27,7 @@ def main(config) -> None:
     trainer.test()
     pred = trainer.predict()
 
-    generate_submission_file(config, pred, datamodule.indexer["idx2item"])
+    generate_submission_file(config, pred, datamodule.idx2item)
 
     wandb.finish()
 

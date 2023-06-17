@@ -35,7 +35,6 @@ class Trainer:
             logger=self._build_wandb_logger(),
             callbacks=[self._build_ckpt_callback()],
             max_epochs=self.max_epochs,
-            profiler="simple",
         )
         return trainer
 
@@ -43,7 +42,7 @@ class Trainer:
         ckpt_callback = ModelCheckpoint(
             dirpath=self.output_dir,
             filename=self.name,
-            monitor="valid_loss",
+            monitor="val_loss",
             save_last=False,
             save_top_k=1,
             mode="min",

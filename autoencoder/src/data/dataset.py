@@ -1,17 +1,14 @@
 from typing import Tuple
 import pandas as pd
+from scipy.sparse import csr_matrix
 import torch
 from torch.utils.data import Dataset
-from src.data.utils import (
-    generate_sparse_matrix,
-    split_sparse_matrix_stratified,
-)
+from src.data.utils import input_target_split
 
 
 class TrainDataset(Dataset):
-    def __init__(self, data: pd.DataFrame):
-        self.data = data
-        self.matrix = generate_sparse_matrix(self.data)
+    def __init__(self, matrix: csr_matrix):
+        self.matrix = matrix
 
     def __len__(self):
         return self.matrix.shape[0]
@@ -22,10 +19,9 @@ class TrainDataset(Dataset):
 
 
 class EvalDataset(Dataset):
-    def __init__(self, data: pd.DataFrame):
-        self.data = data
-        self.matrix = generate_sparse_matrix(self.data)
-        self.input_matrix, self.target_matrix = split_sparse_matrix_stratified(self.matrix)
+    def __init__(self, matrix: csr_matrix):
+        self.matrix = matrix
+        self.input_matrix, self.target_matrix = input_target_split(self.matrix)
 
     def __len__(self):
         return self.matrix.shape[0]
