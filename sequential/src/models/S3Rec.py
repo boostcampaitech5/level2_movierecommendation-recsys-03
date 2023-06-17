@@ -13,16 +13,12 @@ class S3Rec(L.LightningModule):
         super().__init__()
         self.config = config
         self.mask_id = config.data.mask_id
-        self.attr_size = config.data.attr_size
         self.hidden_size = config.model.hidden_size
 
         self.aap_weight = config.trainer.aap_weight
         self.mip_weight = config.trainer.mip_weight
         self.map_weight = config.trainer.map_weight
         self.sp_weight = config.trainer.sp_weight
-
-        self.attr_pred_modules = nn.ModuleList([modules.AttributePrediction(self.attr_size, self.hidden_size)])
-        # self.name2item2attr,
 
         self.name2attr_size = name2attr_size
 
