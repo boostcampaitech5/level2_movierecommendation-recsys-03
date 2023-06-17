@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import torch
+from collections import defaultdict
 from torch.utils.data import Dataset
 
 from src.utils import neg_sample
@@ -8,35 +9,145 @@ from src.config import Config
 
 
 class S3RecDataset(Dataset):
-    def __init__(self, config: Config, user_seq, long_seq):
+    def __init__(self, config: Config, user_seq, long_seq, attr_name2item2attr: dict[str, dict[int, list[int]]], attr_name2attr_size: dict[str, int]):
         self.config = config
         self.long_seq = long_seq
         self.max_len = config.data.max_seq_length
         self.mask_id = config.data.mask_id
+        self.mask_p = config.data.mask_p
         self.item_size = config.data.item_size
-        self.attr_size = config.data.attr_size
-        self.item2attr = self.attr_encoding(config.data.item2attr)
-        self.part_seq = []
-        self.split_seq(user_seq)
 
-        self.data = self.__prepare_data(self.config.data.mask_p)
+        self.attr_name2item2enc = self.__attr_name2item2enc(attr_name2item2attr, attr_name2attr_size)
+        self.attr_name2attr_size = attr_name2attr_size
 
-    def split_seq(self, user_seq):
+        self.part_seq = self.split_seq(user_seq, config.data.pre_data_augmentation)
+        self.data = {}
+
+        if config.data.prepare_data:
+            self.data = self.__prepare_data(self.config.data.mask_p)
+
+    def split_seq(self, user_seq, data_augmentation: bool):
+        part_seq = []
+
         for seq in user_seq:
             input_ids = seq[-(self.max_len + 2) : -2]  # keeping same as train set
-            for i in range(len(input_ids)):
-                self.part_seq.append(input_ids[: i + 1])
 
-    def attr_encoding(self, item2attr):
+            if data_augmentation:
+                for i in range(len(input_ids)):
+                    part_seq.append(input_ids[: i + 1])
+            else:
+                part_seq.append(input_ids)
+
+        return part_seq
+
+    def __attr_name2item2enc(self, attr_name2item2attr: dict[str, dict[int, list[int]]], attr_name2attr_size: dict[str, int]):
+        attr_name2item2enc = {}
+
+        for attr_name in attr_name2item2attr.keys():
+            item2attr = attr_name2item2attr[attr_name]
+            attr_size = attr_name2attr_size[attr_name]
+
+            attr_name2item2enc[attr_name] = self.attr_encoding(item2attr, attr_size)
+
+        return attr_name2item2enc
+
+    def attr_encoding(self, item2attr, attr_size):
         item2encoded_attr = {}
         for item_id, attrs in item2attr.items():
-            item2encoded_attr[item_id] = np.zeros((self.attr_size))
+            item2encoded_attr[item_id] = np.zeros((attr_size))
             item2encoded_attr[item_id][attrs] = 1
             item2encoded_attr[item_id] = item2encoded_attr[item_id].tolist()
         return item2encoded_attr
 
+    def __prepare_row(self, seq, mask_p):
+        # sample neg item for every masked item
+        masked_item_seq = []
+        neg_items = []
+        # Masked Item Prediction
+        item_set = set(seq)
+
+        for idx in range(len(seq) - 1):
+            item = seq[idx]
+            prob = random.random()
+
+            if prob < mask_p:
+                masked_item_seq.append(self.mask_id)
+                neg_items.append(neg_sample(item_set, self.item_size))
+            else:
+                masked_item_seq.append(item)
+                neg_items.append(item)
+
+        # add mask at the last position
+        masked_item_seq.append(self.mask_id)
+        neg_items.append(neg_sample(item_set, self.item_size))
+
+        # Segment Prediction
+        if len(seq) < 2:
+            masked_segment_seq = seq
+            pos_segment = seq
+            neg_segment = seq
+        else:
+            sample_length = random.randint(1, len(seq) // 2)
+            start_id = random.randint(0, len(seq) - sample_length)
+            neg_start_id = random.randint(0, len(self.long_seq) - sample_length)
+            pos_segment = seq[start_id : start_id + sample_length]
+            neg_segment = self.long_seq[neg_start_id : neg_start_id + sample_length]
+            masked_segment_seq = seq[:start_id] + [self.mask_id] * sample_length + seq[start_id + sample_length :]
+            pos_segment = [self.mask_id] * start_id + pos_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
+            neg_segment = [self.mask_id] * start_id + neg_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
+
+        assert len(masked_segment_seq) == len(seq)
+        assert len(pos_segment) == len(seq)
+        assert len(neg_segment) == len(seq)
+
+        # padding sequence
+        pad_len = self.max_len - len(seq)
+        masked_item_seq = [0] * pad_len + masked_item_seq
+        pos_items = [0] * pad_len + seq
+        neg_items = [0] * pad_len + neg_items
+        masked_segment_seq = [0] * pad_len + masked_segment_seq
+        pos_segment = [0] * pad_len + pos_segment
+        neg_segment = [0] * pad_len + neg_segment
+
+        masked_item_seq = masked_item_seq[-self.max_len :]
+        pos_items = pos_items[-self.max_len :]
+        neg_items = neg_items[-self.max_len :]
+
+        masked_segment_seq = masked_segment_seq[-self.max_len :]
+        pos_segment = pos_segment[-self.max_len :]
+        neg_segment = neg_segment[-self.max_len :]
+
+        # Associated Attribute Prediction
+        # Masked Attribute Prediction
+        attr_name2attrs = {}
+
+        for name in self.attr_name2item2enc.keys():
+            item2enc = self.attr_name2item2enc[name]
+            attr_size = self.attr_name2attr_size[name]
+
+            attrs = []
+
+            for item in pos_items:
+                if item in item2enc:
+                    attrs.append(item2enc[item])
+                else:
+                    attrs.append([0] * attr_size)
+
+            attr_name2attrs[name] = attrs
+
+        for attrs in attr_name2attrs.values():
+            assert len(attrs) == self.max_len
+        assert len(masked_item_seq) == self.max_len
+        assert len(pos_items) == self.max_len
+        assert len(neg_items) == self.max_len
+        assert len(masked_segment_seq) == self.max_len
+        assert len(pos_segment) == self.max_len
+        assert len(neg_segment) == self.max_len
+
+        return attr_name2attrs, masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment
+
     def __prepare_data(self, mask_p):
-        attrs_list = []
+        attr_name2attrs_list = defaultdict(list)
         masked_item_seq_list = []
         pos_items_list = []
         neg_items_list = []
@@ -45,82 +156,10 @@ class S3RecDataset(Dataset):
         neg_segment_list = []
 
         for seq in self.part_seq:  # pos_items
-            # sample neg item for every masked item
-            masked_item_seq = []
-            neg_items = []
-            # Masked Item Prediction
-            item_set = set(seq)
+            attr_name2attrs, masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment = self.__prepare_row(seq, mask_p)
 
-            for idx in range(len(seq) - 1):
-                item = seq[idx]
-                prob = random.random()
-
-                if prob < mask_p:
-                    masked_item_seq.append(self.mask_id)
-                    neg_items.append(neg_sample(item_set, self.item_size))
-                else:
-                    masked_item_seq.append(item)
-                    neg_items.append(item)
-
-            # add mask at the last position
-            masked_item_seq.append(self.mask_id)
-            neg_items.append(neg_sample(item_set, self.item_size))
-
-            # Segment Prediction
-            if len(seq) < 2:
-                masked_segment_seq = seq
-                pos_segment = seq
-                neg_segment = seq
-            else:
-                sample_length = random.randint(1, len(seq) // 2)
-                start_id = random.randint(0, len(seq) - sample_length)
-                neg_start_id = random.randint(0, len(self.long_seq) - sample_length)
-                pos_segment = seq[start_id : start_id + sample_length]
-                neg_segment = self.long_seq[neg_start_id : neg_start_id + sample_length]
-                masked_segment_seq = seq[:start_id] + [self.mask_id] * sample_length + seq[start_id + sample_length :]
-                pos_segment = [self.mask_id] * start_id + pos_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
-                neg_segment = [self.mask_id] * start_id + neg_segment + [self.mask_id] * (len(seq) - (start_id + sample_length))
-
-            assert len(masked_segment_seq) == len(seq)
-            assert len(pos_segment) == len(seq)
-            assert len(neg_segment) == len(seq)
-
-            # padding sequence
-            pad_len = self.max_len - len(seq)
-            masked_item_seq = [0] * pad_len + masked_item_seq
-            pos_items = [0] * pad_len + seq
-            neg_items = [0] * pad_len + neg_items
-            masked_segment_seq = [0] * pad_len + masked_segment_seq
-            pos_segment = [0] * pad_len + pos_segment
-            neg_segment = [0] * pad_len + neg_segment
-
-            masked_item_seq = masked_item_seq[-self.max_len :]
-            pos_items = pos_items[-self.max_len :]
-            neg_items = neg_items[-self.max_len :]
-
-            masked_segment_seq = masked_segment_seq[-self.max_len :]
-            pos_segment = pos_segment[-self.max_len :]
-            neg_segment = neg_segment[-self.max_len :]
-
-            # Associated Attribute Prediction
-            # Masked Attribute Prediction
-            attrs = []
-
-            for item in pos_items:
-                if item in self.item2attr:
-                    attrs.append(self.item2attr[item])
-                else:
-                    attrs.append([0] * self.attr_size)
-
-            assert len(attrs) == self.max_len
-            assert len(masked_item_seq) == self.max_len
-            assert len(pos_items) == self.max_len
-            assert len(neg_items) == self.max_len
-            assert len(masked_segment_seq) == self.max_len
-            assert len(pos_segment) == self.max_len
-            assert len(neg_segment) == self.max_len
-
-            attrs_list.append(attrs)
+            for name, attrs in attr_name2attrs.items():
+                attr_name2attrs_list[name].append(attrs)
             masked_item_seq_list.append(masked_item_seq)
             pos_items_list.append(pos_items)
             neg_items_list.append(neg_items)
@@ -129,7 +168,7 @@ class S3RecDataset(Dataset):
             neg_segment_list.append(neg_segment)
 
         data = {
-            "attrs": torch.tensor(attrs_list, dtype=torch.long),
+            "attrs": {name: torch.tensor(attrs, dtype=torch.long) for name, attrs in attr_name2attrs_list.items()},
             "masked_item_seq": torch.tensor(masked_item_seq_list, dtype=torch.long),
             "pos_items": torch.tensor(pos_items_list, dtype=torch.long),
             "neg_items": torch.tensor(neg_items_list, dtype=torch.long),
@@ -141,14 +180,29 @@ class S3RecDataset(Dataset):
         return data
 
     def __getitem__(self, index):
+        if self.data:
+            return (
+                {name: attrs[index] for name, attrs in self.data["attrs"].items()},
+                self.data["masked_item_seq"][index],
+                self.data["pos_items"][index],
+                self.data["neg_items"][index],
+                self.data["masked_segment_seq"][index],
+                self.data["pos_segment"][index],
+                self.data["neg_segment"][index],
+            )
+
+        attr_name2attrs, masked_item_seq, pos_items, neg_items, masked_segment_seq, pos_segment, neg_segment = self.__prepare_row(
+            self.part_seq[index], self.mask_p
+        )
+
         return (
-            self.data["attrs"][index],
-            self.data["masked_item_seq"][index],
-            self.data["pos_items"][index],
-            self.data["neg_items"][index],
-            self.data["masked_segment_seq"][index],
-            self.data["pos_segment"][index],
-            self.data["neg_segment"][index],
+            {name: torch.tensor(attrs, dtype=torch.long) for name, attrs in attr_name2attrs.items()},
+            torch.tensor(masked_item_seq, dtype=torch.long),
+            torch.tensor(pos_items, dtype=torch.long),
+            torch.tensor(neg_items, dtype=torch.long),
+            torch.tensor(masked_segment_seq, dtype=torch.long),
+            torch.tensor(pos_segment, dtype=torch.long),
+            torch.tensor(neg_segment, dtype=torch.long),
         )
 
     def __len__(self):

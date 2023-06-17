@@ -1,5 +1,5 @@
 # data version
-data_version: Ml
+data_version: V1
 
 # batch size of DataLoader
 batch_size: 256
@@ -10,11 +10,15 @@ pre_batch_size: 512
 # max sequence length
 max_seq_length: 50
 
+# pretrain dataset augmentation
+pre_data_augmentation: True
+
+# prepare data at init
+prepare_data: True
+
 # todo: fill
 mask_p: 0.2
 
 # reserved keys (don't modify!)
 item_size: 
 mask_id: 
-attr_size: 
-item2attr: 

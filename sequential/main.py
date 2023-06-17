@@ -17,7 +17,7 @@ def get_trainer(config: Config):
         datamodule = S3RecDataModule(config)
         datamodule.prepare_data()
 
-        model = S3Rec(config)
+        model = S3Rec(config, datamodule.name2attr_size)
 
         pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
         pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
