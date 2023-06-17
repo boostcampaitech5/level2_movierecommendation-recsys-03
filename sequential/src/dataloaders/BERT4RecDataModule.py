@@ -1,7 +1,7 @@
 import lightning as L
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
-from src.utils import get_user_seqs, get_user_seqs_long, get_item2attr_json
+from src.utils import get_user_seqs, get_user_seqs_long
 from src.datasets import BERT4RecDataset
 from src.dataloaders.common import KFoldDataModule, KFoldDataModuleContainer
 
@@ -27,19 +27,14 @@ class BERT4RecDataModule(L.LightningDataModule):
 
         self.train_dir = self.config.path.train_dir
         self.train_file = self.config.path.train_file
-        self.attr_file = config.data.data_version + "_" + config.path.attr_file
 
     # load and feature_engineering dataset
     def prepare_data(self):
         self.user_seq, self.item_size, self.valid_matrix, self.test_matrix, self.submission_matrix = get_user_seqs(self.train_dir, self.train_file)
         self.user_seq, _, self.long_seq = get_user_seqs_long(self.train_dir, self.train_file)
-        self.item2attr, self.attr_size = get_item2attr_json(self.train_dir, self.attr_file)
 
         self.config.data.item_size = self.item_size + 2
         self.config.data.mask_id = self.item_size + 1
-        self.config.data.attr_size = self.attr_size + 1
-        self.config.data.item2attr = self.item2attr
-
         self.mask_id = self.config.data.mask_id
 
     # preprocess and set dataset on train/test case
