@@ -7,6 +7,7 @@ import dotenv
 import numpy as np
 import pandas as pd
 import torch
+import json
 from datetime import datetime
 from scipy.sparse import csr_matrix
 from src.config import Config
@@ -177,6 +178,11 @@ def generate_rating_matrix_submission(user_seq, num_users, num_items):
 
 
 def generate_submission_file(config: Config, preds):
+    idx2item_path = os.path.join(config.path.train_dir, config.path.idx2item_file)
+
+    with open(idx2item_path) as file:
+        idx2item = json.load(file)
+
     sample_sub_path = os.path.join(config.path.eval_dir, config.path.eval_file)
 
     check_dir(config.path.output_dir)
@@ -189,6 +195,8 @@ def generate_submission_file(config: Config, preds):
     items = items.reshape(-1)
 
     sub_df.loc[:, "item"] = items
+    sub_df["item"] = sub_df["item"].apply(lambda x: idx2item[str(x)])
+
     sub_df.to_csv(sub_path, index=False)
     wandb.save(sub_path)
 

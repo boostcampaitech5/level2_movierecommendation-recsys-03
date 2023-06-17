@@ -1,7 +1,7 @@
 # path to train data directory
-train_dir: ../data/dummy/
+train_dir: data/dummy/
 # path to eval data directory
-eval_dir: ../data/dummy/
+eval_dir:  data/dummy/
 # path to output directory
 output_dir: output/dummy
 
@@ -18,3 +18,4 @@ attr_files:
   years:  item2years.json
 # model checkpoint file name
 pretrain_file: pretrain
+idx2item_file: idx2item.json

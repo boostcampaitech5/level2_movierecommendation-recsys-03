@@ -24,6 +24,7 @@ class Path:
     eval_file: str
     attr_files: ListConfig
     pretrain_file: str
+    idx2item_file: str
 
 
 @dataclass
