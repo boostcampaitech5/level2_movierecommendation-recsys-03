@@ -23,8 +23,17 @@ key
 tabular/outputs
 /outputs
 
+# recbole outputs
+recbole/saved
+recbole/outputs
+
 # lightning
 /lightning_logs
 
 # wandb outputs
 tabular/wandb
+recbole/wandb
+
+# recbole logs
+recbole/log
+recbole/log_tensorboard
