@@ -14,15 +14,19 @@ class S3Rec(L.LightningModule):
         self.config = config
         self.mask_id = config.data.mask_id
         self.attr_size = config.data.attr_size
+        self.hidden_size = config.model.hidden_size
 
         self.aap_weight = config.trainer.aap_weight
         self.mip_weight = config.trainer.mip_weight
         self.map_weight = config.trainer.map_weight
         self.sp_weight = config.trainer.sp_weight
 
-        self.base_module = modules.SASRec(config)
+        if config.model.model_name == "SASRec":
+            self.base_module = modules.SASRec(config)
+        if config.model.model_name == "BERT":
+            self.base_module = modules.BERT4Rec(config)
 
-        self.attr_pred_modules = nn.ModuleList([modules.AttributePrediction(self.attr_size, config.model.hidden_size)])
+        self.attr_pred_modules = nn.ModuleList([modules.AttributePrediction(self.attr_size, self.hidden_size)])
         self.s3rec = modules.S3Rec(config, self.base_module, self.attr_pred_modules)
 
         self.training_step_outputs = []

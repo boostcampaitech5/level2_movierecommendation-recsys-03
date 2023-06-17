@@ -5,8 +5,8 @@ import os
 from src.config import Config
 from src.utils import get_timestamp, set_seed, init_wandb, log_parameters, generate_submission_file
 from src.trainers import HoldoutTrainer, PretrainTrainer, KFoldTrainer
-from src.models import S3Rec, SASRec
-from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataModuleContainer
+from src.models import S3Rec, SASRec, BERT4Rec
+from src.dataloaders import S3RecDataModule, SASRecDataModule, SASRecKFoldDataModuleContainer, BERT4RecDataModule, BERT4RecKFoldDataModuleContainer
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -23,23 +23,34 @@ def get_trainer(config: Config):
         pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
 
         return PretrainTrainer(config, model, datamodule, "avg_sp_loss", "min", pretrain_path)
+
+    # select model
     if config.model.model_name == "SASRec":
         datamodule = SASRecDataModule(config)
         datamodule.prepare_data()
         model = SASRec(config, datamodule.valid_matrix, datamodule.test_matrix, datamodule.submission_matrix)
+    if config.model.model_name == "BERT":
+        datamodule = BERT4RecDataModule(config)
+        datamodule.prepare_data()
+        model = BERT4Rec(config, datamodule.valid_matrix, datamodule.test_matrix, datamodule.submission_matrix)
 
-        if config.trainer.use_pretrain:
-            pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
-            pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
+    # use pre_train
+    if config.trainer.use_pretrain:
+        pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
+        pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
 
-            model.load_pretrained_module(pretrain_path)
+        model.load_pretrained_module(pretrain_path)
 
-        if config.trainer.cv:
+    # cv or not
+    if config.trainer.cv:
+        if config.model.model_name == "SASRec":
             kfold_data_module_container = SASRecKFoldDataModuleContainer(config)
+        if config.model.model_name == "BERT":
+            kfold_data_module_container = BERT4RecKFoldDataModuleContainer(config)
 
-            return KFoldTrainer(config, model=model, kfold_data_module_container=kfold_data_module_container, metric="Recall@10", mode="max")
-        else:
-            return HoldoutTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
+        return KFoldTrainer(config, model=model, kfold_data_module_container=kfold_data_module_container, metric="Recall@10", mode="max")
+    else:
+        return HoldoutTrainer(config, model=model, data_module=datamodule, metric="Recall@10", mode="max")
 
 
 def main(config: Config = None) -> None:
