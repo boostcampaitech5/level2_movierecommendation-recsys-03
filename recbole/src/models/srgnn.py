@@ -61,8 +61,8 @@ class GNN(nn.Module):
 
         """
 
-        input_in = torch.matmul(A[:, :, :A.size(1)], self.linear_edge_in(hidden)) + self.b_iah
-        input_out = torch.matmul(A[:, :, A.size(1):2 * A.size(1)], self.linear_edge_out(hidden)) + self.b_ioh
+        input_in = torch.matmul(A[:, :, : A.size(1)], self.linear_edge_in(hidden)) + self.b_iah
+        input_out = torch.matmul(A[:, :, A.size(1) : 2 * A.size(1)], self.linear_edge_out(hidden)) + self.b_ioh
         # [batch_size, max_session_len, embedding_size * 2]
         inputs = torch.cat([input_in, input_out], 2)
 
@@ -116,10 +116,10 @@ class SRGNN(SequentialRecommender):
         super(SRGNN, self).__init__(config, dataset)
 
         # load parameters info
-        self.embedding_size = config['embedding_size']
-        self.step = config['step']
-        self.device = config['device']
-        self.loss_type = config['loss_type']
+        self.embedding_size = config["embedding_size"]
+        self.step = config["step"]
+        self.device = config["device"]
+        self.loss_type = config["loss_type"]
 
         # define layers and loss
         # item embedding
@@ -130,9 +130,9 @@ class SRGNN(SequentialRecommender):
         self.linear_two = nn.Linear(self.embedding_size, self.embedding_size, bias=True)
         self.linear_three = nn.Linear(self.embedding_size, 1, bias=False)
         self.linear_transform = nn.Linear(self.embedding_size * 2, self.embedding_size, bias=True)
-        if self.loss_type == 'BPR':
+        if self.loss_type == "BPR":
             self.loss_fct = BPRLoss()
-        elif self.loss_type == 'CE':
+        elif self.loss_type == "CE":
             self.loss_fct = nn.CrossEntropyLoss()
         else:
             raise NotImplementedError("Make sure 'loss_type' in ['BPR', 'CE']!")
@@ -184,7 +184,6 @@ class SRGNN(SequentialRecommender):
         return alias_inputs, A, items, mask
 
     def forward(self, item_seq, item_seq_len):
-
         alias_inputs, A, items, mask = self._get_slice(item_seq)
         hidden = self.item_embedding(items)
         hidden = self.gnn(A, hidden)
@@ -205,7 +204,7 @@ class SRGNN(SequentialRecommender):
         item_seq_len = interaction[self.ITEM_SEQ_LEN]
         seq_output = self.forward(item_seq, item_seq_len)
         pos_items = interaction[self.POS_ITEM_ID]
-        if self.loss_type == 'BPR':
+        if self.loss_type == "BPR":
             neg_items = interaction[self.NEG_ITEM_ID]
             pos_items_emb = self.item_embedding(pos_items)
             neg_items_emb = self.item_embedding(neg_items)
