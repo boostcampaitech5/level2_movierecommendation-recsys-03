@@ -17,16 +17,14 @@ class BERT4Rec(nn.Module):
         self.dropout_rate = config.model.hidden_dropout_prob
         self.cuda_condition = config.cuda_condition
 
-        self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)  # TODO2: mask와 padding을 고려하여 embedding을 생성해보세요.
+        self.item_embeddings = nn.Embedding(self.item_size, self.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(self.max_len, self.hidden_size)  # learnable positional encoding
         self.dropout = nn.Dropout(self.dropout_rate)
         self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
 
         self.item_encoder = Encoder(self.config)
 
-        # self.item_encoder = nn.ModuleList([BERT4RecBlock(self.config) for _ in range(self.num_layers)])
-        # item_emb을 가져와 내적을 하는 것이 올바른 방법(shared 구조)이나 구현의 편의상 output을 위한 새로운 linear layer 활용
-        self.out = nn.Linear(self.hidden_size, self.item_size)  # TODO3: 예측을 위한 output layer를 구현해보세요. (self.item_size 주의)
+        self.out = nn.Linear(self.hidden_size, self.item_size)
 
     def save(self, file_name: str) -> None:
         torch.save(self.state_dict(), file_name)
