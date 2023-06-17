@@ -154,9 +154,9 @@ class SASRec(L.LightningModule):
 
         rating_pred = self.sasrec.predict_full(seq_output)
 
-        rating_pred = rating_pred.cpu().data.numpy().copy()
+        rating_pred = rating_pred.detach().clone()
         batch_user_index = user_ids.cpu().numpy()
-        rating_pred[self.submission_matrix[batch_user_index].toarray() > 0] = 0
+        rating_pred[torch.from_numpy(self.submission_matrix[batch_user_index].toarray()) > 0] = 0
 
         return rating_pred
 

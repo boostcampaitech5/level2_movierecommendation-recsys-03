@@ -40,7 +40,7 @@ class HoldoutTrainer:
         # inference
         preds = self.trainer.predict(self.model, datamodule=self.data_module)
 
-        return np.concatenate(preds)
+        return torch.concatenate(preds)
 
     def test(self):
         self.trainer.test(self.model, datamodule=self.data_module)
@@ -118,14 +118,19 @@ class KFoldTrainer:
         return cv_score
 
     def predict(self):
-        for fold, fold_trainer in enumerate(self.fold_trainers):
+        fold = 0
+        while self.fold_trainers:
+            fold_trainer = self.fold_trainers.pop(0)
+
             print(f"-------------  Predict Fold {fold} -------------")
             if fold == 0:
                 output = fold_trainer.predict()
             else:
                 output = output + fold_trainer.predict()
 
-        rating_pred = output / self.n_fold
+            fold += 1
+
+        rating_pred = np.array(output / self.n_fold)
 
         ind = np.argpartition(rating_pred, -10)[:, -10:]
         arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
