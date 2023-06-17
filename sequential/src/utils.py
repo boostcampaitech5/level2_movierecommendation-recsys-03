@@ -60,7 +60,6 @@ def log_parameters(is_pretrain: bool, config: Config) -> None:
             "hidden_act": config.model.hidden_act,
             "attention_probs_dropout_prob": config.model.attention_probs_dropout_prob,
             "hidden_dropout_prob": config.model.hidden_dropout_prob,
-            "item_size": config.model.item_size,
         }
     )
     # common trainer config
