@@ -240,19 +240,28 @@ def get_user_seqs_long(train_dir, train_file):
     return user_seq, max_item, long_seq
 
 
-def get_item2attr_json(train_dir, attr_file):
-    data_path = os.path.join(train_dir, attr_file)
+def get_attrs_from_json(train_dir, attr_files: list[str], attr_names: list[str]) -> tuple[dict[str, dict[int, list[int]]], dict[str, int]]:
+    assert len(attr_files) == len(attr_names)
 
-    with open(data_path) as f:
-        item2attr = json.loads(f.readline())
+    attr_name2item2attr = {}
+    attr_name2attr_size = {}
 
-    item2attr = {int(key): value for key, value in item2attr.items()}
+    for attr_file, attr_name in zip(attr_files, attr_names):
+        data_path = os.path.join(train_dir, attr_file)
 
-    attr_set = set()
-    for item_id, attrs in item2attr.items():
-        attr_set = attr_set | set(attrs)
-    attr_size = max(attr_set)
-    return item2attr, attr_size
+        with open(data_path) as f:
+            item2attr = json.load(f)
+
+        item2attr = {int(key): value for key, value in item2attr.items()}
+
+        attr_size = -1
+        for attrs in item2attr.values():
+            attr_size = max(attr_size, *attrs)
+
+        attr_name2item2attr[attr_name] = item2attr
+        attr_name2attr_size[attr_name] = attr_size + 1
+
+    return attr_name2item2attr, attr_name2attr_size
 
 
 def get_metric(pred_list, topk=10):

@@ -2,6 +2,7 @@ from src.config import Config
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from src.dataloaders import KFoldDataModuleContainer
+from src.models import S3Rec
 import torch
 import lightning as L
 import copy
@@ -46,9 +47,7 @@ class HoldoutTrainer:
 
 
 class PretrainTrainer(HoldoutTrainer):
-    def __init__(
-        self, config: Config, model: L.LightningModule, data_module: L.LightningDataModule, metric: str, mode: str, pretrain_path: str
-    ) -> None:
+    def __init__(self, config: Config, model: S3Rec, data_module: L.LightningDataModule, metric: str, mode: str, pretrain_path: str) -> None:
         super().__init__(config, model, data_module, metric, mode)
         self.pretrain_path = pretrain_path
 
@@ -59,7 +58,7 @@ class PretrainTrainer(HoldoutTrainer):
 
     def save_best_pretrained_module(self):
         # load and
-        self.model.load_from_checkpoint(self.checkpoint.best_model_path, config=self.config)
+        self.model.load_from_checkpoint(self.checkpoint.best_model_path, config=self.config, name2attr_size=self.model.name2attr_size)
         self.model.save_pretrained_module(self.pretrain_path)
 
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from omegaconf import ListConfig
 
 
 @dataclass
@@ -7,11 +8,11 @@ class Data:
     batch_size: int
     pre_batch_size: int
     max_seq_length: int
+    pre_data_augmentation: bool
+    prepare_data: bool
     mask_p: float
     item_size: int
     mask_id: int
-    attr_size: int
-    item2attr: dict
 
 
 @dataclass
@@ -21,7 +22,7 @@ class Path:
     output_dir: str
     train_file: str
     eval_file: str
-    attr_file: str
+    attr_files: ListConfig
     pretrain_file: str
 
 
