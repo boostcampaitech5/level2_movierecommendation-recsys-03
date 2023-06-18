@@ -4,12 +4,20 @@ import pandas as pd
 
 
 DATA_VERSION = "V1"
-BASE_PATH = "../data/train"
+BASE_PATH = "data/train"
 
 
 def tsv2json(file_name):
     file_path = os.path.join(BASE_PATH, file_name)
     df = pd.read_csv(file_path, delimiter="\t")
+
+    item2idx_path = os.path.join(BASE_PATH, "item2idx.json")
+
+    with open(item2idx_path) as file:
+        item2idx = json.load(file)
+
+    df["item"] = df["item"].apply(lambda x: item2idx[str(x)])
+
     attr_col = df.columns.values[1]
 
     df[attr_col] = df[attr_col].astype("category")
