@@ -20,6 +20,7 @@ class Recommender(L.LightningModule):
         self.update_count = 0
 
         self.score_list = []
+        self.save_hyperparameters()
 
     def training_step(self, batch, batch_idx):
         x = batch
