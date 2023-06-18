@@ -22,7 +22,7 @@ def get_trainer(config: Config):
         pretrain_file = config.trainer.pretrain_version + "_" + config.path.pretrain_file + ".pt"
         pretrain_path = os.path.join(config.path.output_dir, pretrain_file)
 
-        return PretrainTrainer(config, model, datamodule, "avg_sp_loss", "min", pretrain_path)
+        return PretrainTrainer(config, model, datamodule, "avg_joint_loss", "min", pretrain_path)
 
     # select model
     if config.model.model_name == "SASRec":
