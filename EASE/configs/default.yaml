@@ -1,0 +1,10 @@
+# path
+base_path: ../data/train
+train_path: train_ratings.csv
+
+# preprocess setting
+rel_colname: rel
+rel_val: 1.0
+
+# k of ranking
+k: 10
