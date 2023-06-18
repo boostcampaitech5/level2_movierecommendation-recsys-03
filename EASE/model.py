@@ -6,7 +6,6 @@ from itertools import starmap
 from omegaconf import DictConfig
 from scipy.sparse import csr_matrix
 from sklearn.preprocessing import LabelEncoder
-from multiprocessing import Pool, cpu_count
 
 
 class EASE:
