@@ -21,8 +21,7 @@ class EASE:
         print(">>> model is on fit task ...")
         users = self.user_encoder.fit_transform(df.loc[:, "user"])
         items = self.item_encoder.fit_transform(df.loc[:, "item"])
-        # values = np.ones(df.shape[0]) # ⭐ chagne here to 0.9 ⭐
-        values = np.full(df.shape[0], 0.9)
+        values = np.ones(df.shape[0])
 
         X = csr_matrix((values, (users, items)))  # change to csr matrix
 
