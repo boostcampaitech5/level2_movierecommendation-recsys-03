@@ -1,0 +1,8 @@
+# cache directory
+__pycache__
+
+# submit file save directory
+output
+
+# outputs of hydra
+outputs
