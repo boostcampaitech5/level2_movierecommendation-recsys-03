@@ -1,6 +1,7 @@
 # path
 base_path: ../data/train
 train_path: train_ratings.csv
+save_path: /output
 
 # preprocess setting
 rel_colname: rel
@@ -8,3 +9,6 @@ rel_val: 1.0
 
 # k of ranking
 k: 10
+
+# lambda of EASE model
+lambda_: 500
