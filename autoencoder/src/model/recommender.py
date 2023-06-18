@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
@@ -15,9 +16,10 @@ class Recommender(L.LightningModule):
         self.wd = config.model.wd
         self.total_anneal_step = config.model.total_anneal_step
         self.anneal_cap = config.model.anneal_cap
-
         self.anneal = 0.0
         self.update_count = 0
+
+        self.score_list = []
 
     def training_step(self, batch, batch_idx):
         x = batch
@@ -33,8 +35,14 @@ class Recommender(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self._shared_eval_step(batch, batch_idx, "val")
 
+    def on_validation_epoch_end(self) -> None:
+        return self._on_shared_eval_epoch_end("val")
+
     def test_step(self, batch, batch_idx):
         return self._shared_eval_step(batch, batch_idx, "test")
+
+    def on_test_epoch_end(self) -> None:
+        return self._on_shared_eval_epoch_end("test")
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx):
@@ -58,16 +66,27 @@ class Recommender(L.LightningModule):
 
     @torch.no_grad()
     def _shared_eval_step(self, batch, batch_idx, prefix):
-        x, _ = batch
+        x, target = batch
         x_hat, mu, logvar = self.model(x)
 
         loss = self._compute_loss(x, x_hat, mu, logvar, self.anneal)
 
-        log_dict = {
-            f"{prefix}_loss": loss,
-        }
+        target = target.cpu().numpy()
+        x_hat = x_hat.cpu().numpy()
 
+        self.score_list.append(self._recall_at_k_(target, x_hat, 10))
+
+        self.log(f"{prefix}_loss", loss)
+        return loss
+
+    def _on_shared_eval_epoch_end(self, prefix: str):
+        score_list = np.concatenate(self.score_list)
+        avg_score = np.mean(score_list)
+        log_dict = {
+            f"{prefix}_Recall@10": avg_score,
+        }
         self.log_dict(log_dict)
+        self.score_list.clear()
         return log_dict
 
     def _step_anneal(self, total_anneal_step, anneal_cap, anneal, update_count):
@@ -86,18 +105,15 @@ class Recommender(L.LightningModule):
         pred_topk = ind[np.arange(len(x_hat))[:, None], arr_ind_argsort]
         return pred_topk
 
-    def _recall_at_k_batch(self, x_hat: torch.Tensor, x_target: torch.Tensor, k: int) -> np.ndarray:
-        x_hat = x_hat.cpu().numpy()
-        x_target = x_target.cpu().numpy()
+    def _recall_at_k_(self, target: np.ndarray, x_hat: np.ndarray, k: int) -> np.ndarray:
+        target = target > 0
 
         ind = np.argpartition(x_hat, -k)[:, -k:]
-        x_hat_bool = np.zeros_like(x_hat, dtype=bool)
-        x_hat_bool[np.arange(len(x_hat))[:, None], ind[:, :k]] = True
+        preds = np.zeros_like(x_hat, dtype=bool)
+        preds[np.arange(len(x_hat))[:, None], ind[:, :k]] = True
 
-        x_target_bool = x_target > 0
-
-        tmp = (np.logical_and(x_target_bool, x_hat_bool).sum(axis=1)).astype(np.float32)
-        recall = tmp / np.minimum(k, x_target_bool.sum(axis=1))
+        tmp = np.logical_and(target, preds).sum(axis=1)
+        recall = tmp / np.minimum(k, target.sum(axis=1))
         return recall
 
     def _remove_rated_item(self, x_hat: torch.Tensor, x: torch.Tensor) -> np.ndarray:
