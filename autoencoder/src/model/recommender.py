@@ -84,7 +84,7 @@ class Recommender(L.LightningModule):
         score_list = np.concatenate(self.score_list)
         avg_score = np.mean(score_list)
         log_dict = {
-            f"{prefix}_Recall@10": avg_score,
+            f"{prefix}_recall@10": avg_score,
         }
         self.log_dict(log_dict)
         self.score_list.clear()
