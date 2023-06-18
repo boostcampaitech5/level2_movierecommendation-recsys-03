@@ -42,10 +42,10 @@ class Trainer:
         ckpt_callback = ModelCheckpoint(
             dirpath=self.output_dir,
             filename=self.name,
-            monitor="val_loss",
+            monitor="val_recall@10",
             save_last=False,
             save_top_k=1,
-            mode="min",
+            mode="max",
             verbose=True,
         )
         return ckpt_callback
