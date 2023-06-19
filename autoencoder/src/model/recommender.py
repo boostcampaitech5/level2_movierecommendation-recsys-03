@@ -50,8 +50,10 @@ class Recommender(L.LightningModule):
         x = batch
         x_hat, _, _ = self.model(x)
 
-        x_hat = self._remove_rated_item(x_hat, x)
+        x = x.cpu().numpy()
+        x_hat = x_hat.cpu().numpy()
 
+        x_hat = self._remove_rated_item(x_hat, x)
         pred_topk = self._predict_topk(x_hat, 10)
         return pred_topk
 
@@ -72,10 +74,13 @@ class Recommender(L.LightningModule):
 
         loss = self._compute_loss(x, x_hat, mu, logvar, self.anneal)
 
+        x = x.cpu().numpy()
         target = target.cpu().numpy()
         x_hat = x_hat.cpu().numpy()
 
-        self.score_list.append(self._recall_at_k_(target, x_hat, 10))
+        x_hat = self._remove_rated_item(x_hat, x)
+        score = self._recall_at_k_(target, x_hat, 10)
+        self.score_list.append(score)
 
         self.log(f"{prefix}_loss", loss)
         return loss
@@ -117,11 +122,9 @@ class Recommender(L.LightningModule):
         recall = tmp / np.minimum(k, target.sum(axis=1))
         return recall
 
-    def _remove_rated_item(self, x_hat: torch.Tensor, x: torch.Tensor) -> np.ndarray:
-        x_hat_numpy = x_hat.cpu().numpy()
-        x_numpy = x.cpu().numpy()
-        x_hat_copy = x_hat_numpy.copy()
-        x_copy = x_numpy.copy()
+    def _remove_rated_item(self, x_hat: np.ndarray, x: np.ndarray) -> np.ndarray:
+        x_hat_copy = x_hat.copy()
+        x_copy = x.copy()
 
         for user_id in range(x_copy.shape[0]):
             idx_rated: list = np.asarray(np.where(x_copy[user_id] != 0))[0].tolist()
