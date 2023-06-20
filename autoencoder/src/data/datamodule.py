@@ -36,11 +36,11 @@ class DataModule(L.LightningDataModule):
         self.user_seq, self.num_items, self.raw_matrix, self.idx2item = get_user_seqs(self.raw_data)
 
     def setup(self, stage: Optional[str] = None):
-        train_matrix, val_matrix, test_matrix = train_val_test_split(self.raw_matrix)
+        train_matrix, val_matrix, test_matrix, train_seq, val_seq, test_seq = train_val_test_split(self.raw_matrix, self.user_seq)
 
         self.train_dataset = TrainDataset(train_matrix)
-        self.val_dataset = EvalDataset(val_matrix)
-        self.test_dataset = EvalDataset(test_matrix)
+        self.val_dataset = EvalDataset(val_matrix, val_seq)
+        self.test_dataset = EvalDataset(test_matrix, test_seq)
         self.predict_dataset = TrainDataset(self.raw_matrix)
 
     def train_dataloader(self) -> DataLoader:
