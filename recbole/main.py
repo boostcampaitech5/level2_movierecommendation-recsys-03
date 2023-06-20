@@ -41,6 +41,7 @@ def main(args) -> None:
 
     best_config, best_model = get_result(tuner)
     predict_to_submit(best_model)
+    print(tuner.results_df)
 
     wandb.save(best_model)
     wandb.log(best_config)
