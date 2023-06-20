@@ -1,5 +1,7 @@
 # Basic Information
 model: SRGNN # enter model name
+dataset: dummy
+count: 2 # how many times to search in Ray
 
 # Training Hyper Parameters
 epochs: 1
@@ -7,12 +9,14 @@ train_batch_size: 1024
 eval_batch_size: 1024
 learner: adam
 learning_rate: 0.001
+embedding_size: 64
 neg_sampling: 
 eval_step: 1
 stopping_step: 3 # threshold for early stopping
 weight_decay: 0.0
 loss_decimal_place: 4
 train_neg_sample_args: 
+show_progress: True
 
 #Evaluation Hyper Parameters:
 metrics: ['Recall']
@@ -20,16 +24,6 @@ topk: [10]
 valid_metric: Recall@10
 valid_metric_bigger: True
 metric_decimal_place: 4
-
-# WandB Settings
-log_wandb: True
-wandb_project: 'MovieRec_recbole'
-show_progress: True
-
-# Paths
-data_path: '../data'
-output_path: 'outputs/'
-submission_path: '../data/eval'
 
 # DATA Settings
 USER_ID_FIELD: user
@@ -41,8 +35,6 @@ load_col:
 
 user_inter_num_interval: "[0,inf)"
 item_inter_num_interval: "[0,inf)"
-val_interval:
-    time: "[1113220585, inf)"
 
 eval_args:
     split: 
@@ -51,3 +43,8 @@ eval_args:
     group_by: user
     order: TO 
     mode: full
+
+# Paths
+data_path: '/opt/ml/input/level2_movierecommendation-recsys-03/data'
+output_path: '/opt/ml/input/level2_movierecommendation-recsys-03/recbole/outputs'
+submission_path: '/opt/ml/input/level2_movierecommendation-recsys-03/data/eval'

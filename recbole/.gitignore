@@ -19,12 +19,16 @@ key
 # environment
 *.env
 
-# hydra outputs
-tabular/outputs
-/outputs
+#jupyter notebook
+*.ipynb
 
-# lightning
-/lightning_logs
+# logs
+log
+log_tensorboard
 
-# wandb outputs
-tabular/wandb
+# wandb
+/wandb
+
+# outputs
+saved
+outputs
