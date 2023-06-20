@@ -29,7 +29,7 @@ def create_inter(data_file: str, data: pd.DataFrame) -> None:
     dummy_sub.to_csv(dummy_sub_path, index=False)
 
 
-def check_and_create(config: dict) -> None:
+def check_and_create_data(config: dict) -> None:
     if not existence(config):
         data_file = get_path(config)
         data_path = config["data_path"]
