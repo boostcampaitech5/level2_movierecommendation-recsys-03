@@ -1,15 +1,6 @@
 import os
-import yaml
 import pandas as pd
-from typing import Tuple
-
-
-def check_existence() -> Tuple[str, bool]:
-    with open("configs/default.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    path = os.path.join(config["data_path"], "train")
-    data_file = os.path.join(path, "train.inter")
-    return data_file, os.path.isfile(data_file)
+from .utils import existence, get_path
 
 
 def create_inter(data_file: str, data: pd.DataFrame) -> None:
@@ -36,3 +27,12 @@ def create_inter(data_file: str, data: pd.DataFrame) -> None:
 
     dummy_sub_path = os.path.join("../data/eval/dummy.csv")
     dummy_sub.to_csv(dummy_sub_path, index=False)
+
+
+def check_and_create(config: dict) -> None:
+    if not existence(config):
+        data_file = get_path(config)
+        data_path = config["data_path"]
+        data_path = os.path.join(data_path, "train/train_ratings.csv")
+        data = pd.read_csv(data_path)
+        create_inter(data_file, data)
