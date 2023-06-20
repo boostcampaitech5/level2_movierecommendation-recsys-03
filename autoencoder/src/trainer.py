@@ -22,10 +22,10 @@ class Trainer:
         self.trainer.fit(self.model, self.datamodule)
 
     def test(self) -> None:
-        self.trainer.test(self.model, self.datamodule)
+        self.trainer.test(self.model, self.datamodule, ckpt_path="best")
 
     def predict(self) -> np.ndarray:
-        pred = self.trainer.predict(self.model, self.datamodule)
+        pred = self.trainer.predict(self.model, self.datamodule, ckpt_path="best")
         return pred
 
     def _build_trainer(self) -> L.Trainer:
