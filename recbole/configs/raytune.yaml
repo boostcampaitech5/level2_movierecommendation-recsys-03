@@ -1,0 +1,7 @@
+model: tune.choice(['SRGNN'])
+train_batch_size: tune.choice([2048])
+eval_batch_size: tune.choice([2048])
+learner: tune.choice(['adam'])
+learning_rate: tune.loguniform(1e-4, 1e-1)
+embedding_size: tune.choice([128])
+weight_decay: tune.loguniform(1e-4, 1e-1)
