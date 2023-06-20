@@ -13,7 +13,7 @@ def get_scheduler() -> ASHAScheduler:
     return scheduler
 
 
-def get_result(config_file_list: list, config: Optional[dict] = None) -> Tuple[str, float, dict[str, float], float, str]:
+def train_recbole(config_file_list: list, config: Optional[dict] = None) -> Tuple[str, float, dict[str, float], float, str]:
     config = Config(config_file_list=config_file_list, config_dict=config)
     init_seed(config["seed"], config["reproducibility"])
     init_logger(config)
@@ -34,7 +34,7 @@ def get_result(config_file_list: list, config: Optional[dict] = None) -> Tuple[s
 
 
 def objective_function(config: None, config_file_list: list) -> Dict[str, Any]:
-    model_name, best_valid_score, best_valid_result, test_result, _ = get_result(config_file_list=config_file_list)
+    model_name, best_valid_score, best_valid_result, test_result, _ = train_recbole(config_file_list=config_file_list)
     tune.report(recall=best_valid_score)
 
     return {"model": model_name, "recall": best_valid_score, "best_valid_result/recall@10": best_valid_result, "test_result": test_result}
