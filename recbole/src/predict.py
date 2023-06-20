@@ -31,3 +31,4 @@ def predict_to_submit(model_file: str) -> None:
     out_path = os.path.join(config["output_path"], f"{timestamp}_{config['model']}_submit.csv")
     submission.to_csv(out_path, index=False)
     wandb.save(out_path)
+    print("-------------------- Submission saved --------------------")
