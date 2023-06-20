@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict
 import numpy as np
 import torch
 import torch.nn as nn
@@ -19,7 +19,7 @@ class Recommender(L.LightningModule):
         self.anneal = 0.0
         self.update_count = 0
 
-        self.score_list = []
+        self.shared_eval_step_outputs = []
         self.save_hyperparameters()
 
     def training_step(self, batch, batch_idx):
@@ -29,9 +29,10 @@ class Recommender(L.LightningModule):
         self.anneal, self.update_count = self._step_anneal(self.total_anneal_step, self.anneal_cap, self.anneal, self.update_count)
 
         loss = self._compute_loss(x, x_hat, mu, logvar, self.anneal)
-        self.log("train_loss", loss)
-        self.log("anneal", self.anneal)
         return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.log("anneal", self.anneal)
 
     def validation_step(self, batch, batch_idx):
         return self._shared_eval_step(batch, batch_idx, "val")
@@ -80,19 +81,24 @@ class Recommender(L.LightningModule):
 
         x_hat = self._remove_rated_item(x_hat, x)
         score = self._recall_at_k_(target, x_hat, 10)
-        self.score_list.append(score)
 
-        self.log(f"{prefix}_loss", loss)
-        return loss
+        output = {"loss": loss, "score": score}
+        self.shared_eval_step_outputs.append(output)
+        return output
 
     def _on_shared_eval_epoch_end(self, prefix: str):
-        score_list = np.concatenate(self.score_list)
-        avg_score = np.mean(score_list)
+        outputs: List[Dict[torch.Tensor, np.ndarray]] = self.shared_eval_step_outputs
+
+        avg_loss = torch.stack([output["loss"] for output in outputs]).mean()
+        avg_score = np.concatenate([output["score"] for output in outputs]).mean()
+
         log_dict = {
+            f"{prefix}_loss": avg_loss,
             f"{prefix}_recall@10": avg_score,
         }
+
         self.log_dict(log_dict)
-        self.score_list.clear()
+        self.shared_eval_step_outputs.clear()
         return log_dict
 
     def _step_anneal(self, total_anneal_step, anneal_cap, anneal, update_count):
