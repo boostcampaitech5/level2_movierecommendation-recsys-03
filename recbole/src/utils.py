@@ -33,12 +33,12 @@ def read_config(config_file: str) -> Dict[str, Any]:
     return config
 
 
-def init_wandb(config: dict) -> None:
+def init_wandb(config: dict, timestamp: str) -> None:
     dotenv.load_dotenv()
     WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
     wandb.login(key=WANDB_API_KEY)
 
-    run = wandb.init(project="MovieRec_recbole", entity="recsys01", name="work" + get_timestamp())
+    run = wandb.init(project="MovieRec_recbole", entity="recsys01", name=("work" + timestamp))
     run.tags = [config["model"]]
 
 
@@ -65,3 +65,10 @@ def get_result(tuner: ExperimentAnalysis) -> Tuple[dict, str]:
     model_file = os.listdir(best_dir)[0]
     best_model = os.path.join(best_dir, model_file)
     return best_config, best_model
+
+
+def setting_path(config: dict, base_path: str) -> None:
+    base_path = base_path.removesuffix("recbole")
+    config["data_path"] = os.path.join(base_path, config["data_path"])
+    config["output_path"] = os.path.join(base_path, config["output_path"])
+    config["submission_path"] = os.path.join(base_path, config["submission_path"])
