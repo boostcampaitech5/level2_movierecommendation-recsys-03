@@ -1,12 +1,11 @@
 import os
 import wandb
 import pandas as pd
-from .utils import get_timestamp
 from recbole.utils.case_study import full_sort_topk
 from recbole.quick_start import load_data_and_model
 
 
-def predict_to_submit(model_file: str) -> None:
+def predict_to_submit(model_file: str, timestamp) -> None:
     print("-------------------- Load models for prediction --------------------")
 
     config, model, dataset, _, _, test_data = load_data_and_model(
@@ -24,7 +23,6 @@ def predict_to_submit(model_file: str) -> None:
     submission = pd.read_csv(sub_path)
     submission["item"] = external_item_list
 
-    timestamp = get_timestamp()
     print("-------------------- Saving results --------------------")
 
     os.makedirs(config["output_path"], exist_ok=True)
