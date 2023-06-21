@@ -1,6 +1,6 @@
 # Basic Information
 model: SRGNN # enter model name
-dataset: dummy
+dataset: train
 count: 2 # how many times to search in Ray
 
 # Training Hyper Parameters
@@ -45,6 +45,6 @@ eval_args:
     mode: full
 
 # Paths
-data_path: '/opt/ml/input/level2_movierecommendation-recsys-03/data'
-output_path: '/opt/ml/input/level2_movierecommendation-recsys-03/recbole/outputs'
-submission_path: '/opt/ml/input/level2_movierecommendation-recsys-03/data/eval'
+data_path: 'data'
+output_path: 'recbole/outputs'
+submission_path: 'data/eval'
