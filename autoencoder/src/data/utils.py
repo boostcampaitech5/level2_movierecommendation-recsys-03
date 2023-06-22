@@ -112,3 +112,24 @@ def input_target_mix_split(sparse_matrix: csr_matrix, user_seq: list, ratio: flo
     assert input_matrix.shape == target_matrix.shape
 
     return csr_matrix(input_matrix), csr_matrix(target_matrix)
+
+
+def input_target_mix_leave_n_out_split(sparse_matrix: csr_matrix, user_seq: list, n: int = 1) -> Tuple[csr_matrix, csr_matrix]:
+    numpy_matrix: np.ndarray = sparse_matrix.toarray()
+
+    input_matrix = numpy_matrix.copy()
+    target_matrix = numpy_matrix.copy()
+
+    for user_id in range(numpy_matrix.shape[0]):
+        idx = np.asarray(np.where(input_matrix[user_id] != 0))[0].tolist()
+        idx_static = np.random.choice(user_seq[user_id][:-n], n, replace=False).tolist()
+        idx_dynamic = user_seq[user_id][-n:]
+        idx_target = idx_static + idx_dynamic
+        idx_input = list(set(idx) - set(idx_target))
+
+        input_matrix[user_id, idx_target] = 0
+        target_matrix[user_id, idx_input] = 0
+
+    assert input_matrix.shape == target_matrix.shape
+
+    return csr_matrix(input_matrix), csr_matrix(target_matrix)
