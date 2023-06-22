@@ -2,7 +2,11 @@ from typing import Tuple
 from scipy.sparse import csr_matrix
 import torch
 from torch.utils.data import Dataset
-from src.data.utils import input_target_mix_split
+from src.data.utils import (
+    input_target_split,
+    input_target_mix_split,
+    input_target_mix_leave_n_out_split,
+)
 
 
 class TrainDataset(Dataset):
@@ -18,10 +22,10 @@ class TrainDataset(Dataset):
 
 
 class EvalDataset(Dataset):
-    def __init__(self, matrix: csr_matrix, seq):
+    def __init__(self, matrix: csr_matrix, seq: list):
         self.matrix = matrix
         self.seq = seq
-        self.input_matrix, self.target_matrix = input_target_mix_split(self.matrix, self.seq)
+        self.input_matrix, self.target_matrix = input_target_mix_leave_n_out_split(self.matrix, self.seq)
 
     def __len__(self):
         return self.matrix.shape[0]
