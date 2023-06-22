@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,6 +7,7 @@ import torch.nn.functional as F
 class MultiVAE(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.act: torch.Tensor = ACT2FN[config.model.act]
         self.p_dims: list = config.model.p_dims  # [200, 600, 6807]
         self.q_dims: list = self.p_dims[::-1]  # [6807, 600, 200]
 
@@ -30,7 +32,7 @@ class MultiVAE(nn.Module):
         for i, layer in enumerate(self.q_layers):
             h = layer(h)
             if i != len(self.q_layers) - 1:
-                h = F.tanh(h)
+                h = self.act(h)
             else:
                 mu = h[:, : self.q_dims[-1]]  # h [B, 1, 200] h[:,:,:200]
                 logvar = h[:, self.q_dims[-1] :]  # h [B, 1, 200]
@@ -49,7 +51,7 @@ class MultiVAE(nn.Module):
         for i, layer in enumerate(self.p_layers):
             h = layer(h)
             if i != len(self.p_layers) - 1:
-                h = F.tanh(h)
+                h = self.act(h)
         return h
 
     def init_weights(self):
@@ -60,3 +62,14 @@ class MultiVAE(nn.Module):
         for layer in self.p_layers:
             nn.init.xavier_normal_(layer.weight.data)
             nn.init.normal_(layer.bias.data, 0.0, 0.001)
+
+
+def gelu(x):
+    return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
+
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+
+ACT2FN = {"tanh": F.tanh, "gelu": gelu, "relu": F.relu, "swish": swish, "leakyrelu": F.leaky_relu}
