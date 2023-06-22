@@ -8,17 +8,20 @@ from src.data.dataset import TrainDataset, EvalDataset
 from src.data.utils import (
     get_user_seqs,
     train_val_test_split,
+    kfold_train_val_test_split,
 )
 
 
 class DataModule(L.LightningDataModule):
-    def __init__(self, config):
+    def __init__(self, config, k: Optional[int] = None):
         super().__init__()
         self.config = config
         self.train_dir = config.path.train_dir
         self.train_file = config.path.train_file
         self.batch_size = config.data.batch_size
         self.num_workers = config.data.num_workers
+        self.strategy = config.trainer.strategy
+        self.k = k
 
         self.raw_data: Optional[pd.DataFrame] = None
         self.user_seq: Optional[list] = None
@@ -36,7 +39,7 @@ class DataModule(L.LightningDataModule):
         self.user_seq, self.num_items, self.raw_matrix, self.idx2item = get_user_seqs(self.raw_data)
 
     def setup(self, stage: Optional[str] = None):
-        train_matrix, val_matrix, test_matrix, train_seq, val_seq, test_seq = train_val_test_split(self.raw_matrix, self.user_seq)
+        train_matrix, val_matrix, test_matrix, train_seq, val_seq, test_seq = STRATEGY2FUNC[self.strategy](self.raw_matrix, self.user_seq, k=self.k)
 
         self.train_dataset = TrainDataset(train_matrix)
         self.val_dataset = EvalDataset(val_matrix, val_seq)
@@ -58,3 +61,6 @@ class DataModule(L.LightningDataModule):
     def predict_dataloader(self) -> DataLoader:
         loader = DataLoader(self.predict_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
         return loader
+
+
+STRATEGY2FUNC = {"holdout": train_val_test_split, "kfold": kfold_train_val_test_split}
