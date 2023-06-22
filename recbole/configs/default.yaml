@@ -32,10 +32,11 @@ TIME_FIELD: time
 
 load_col:
     inter: [user, item, time]
+    item: [item, genre]
 
 user_inter_num_interval: "[0,inf)"
 item_inter_num_interval: "[0,inf)"
-
+item_attribute: genre
 eval_args:
     split: 
         LS: valid_and_test

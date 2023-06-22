@@ -8,15 +8,15 @@ from typing import Dict, Any, Tuple
 from ray.tune import ExperimentAnalysis
 
 
-def existence(config: dict) -> bool:
+def existence(config: dict, data_type: str) -> bool:
     path = os.path.join(config["data_path"], "train")
-    data_file = os.path.join(path, "train.inter")
+    data_file = os.path.join(path, "train." + data_type)
     return os.path.isfile(data_file)
 
 
-def get_path(config: dict) -> str:
+def get_path(config: dict, data_type: str) -> str:
     path = os.path.join(config["data_path"], "train")
-    data_file = os.path.join(path, "train.inter")
+    data_file = os.path.join(path, ("train." + data_type))
     return data_file
 
 
@@ -67,7 +67,7 @@ def get_result(tuner: ExperimentAnalysis) -> Tuple[dict, str]:
     return best_config, best_model
 
 
-def setting_path(config: dict, base_path: str) -> None:
+def set_path(config: dict, base_path: str) -> None:
     base_path = base_path.removesuffix("recbole")
     config["data_path"] = os.path.join(base_path, config["data_path"])
     config["output_path"] = os.path.join(base_path, config["output_path"])
