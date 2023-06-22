@@ -29,10 +29,28 @@ def create_inter(data_file: str, data: pd.DataFrame) -> None:
     dummy_sub.to_csv(dummy_sub_path, index=False)
 
 
-def check_and_create_data(config: dict) -> None:
-    if not existence(config):
-        data_file = get_path(config)
+def create_item(data_file: str, data: pd.DataFrame) -> None:
+    item_table = list(data.values)
+    print("--------------------Creating train.item files--------------------")
+    with open(data_file, "w") as f:
+        f.write("item:token\tgenre:token\n")
+        for row in item_table:
+            f.write("\t".join([str(x) for x in row]) + "\n")
+
+
+def check_and_create_inter(config: dict) -> None:
+    if not existence(config, "inter"):
+        data_file = get_path(config, "inter")
         data_path = config["data_path"]
         data_path = os.path.join(data_path, "train/train_ratings.csv")
         data = pd.read_csv(data_path)
         create_inter(data_file, data)
+
+
+def check_and_create_item(config: dict) -> None:
+    if not existence(config, "item"):
+        data_file = get_path(config, "item")
+        data_path = config["data_path"]
+        data_path = os.path.join(data_path, "train/genres.tsv")
+        data = pd.read_csv(data_path, sep="/t")
+        create_item(data_file, data)
