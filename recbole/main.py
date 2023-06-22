@@ -7,9 +7,9 @@ from ray import tune
 from functools import partial
 from ray.tune import CLIReporter
 from src.predict import predict_to_submit
-from src.preprocess import check_and_create_data
 from src.trainer import objective_function, get_scheduler
-from src.utils import read_config, read_yaml, init_wandb, get_result, setting_path, get_timestamp
+from src.preprocess import check_and_create_inter, check_and_create_item
+from src.utils import read_config, read_yaml, init_wandb, get_result, set_path, get_timestamp
 
 
 def main(args) -> None:
@@ -27,13 +27,14 @@ def main(args) -> None:
     ray_config = read_config(ray_config)
 
     # Create Data for RecBole
-    setting_path(config, base_path)
-    check_and_create_data(config)
+    set_path(config, base_path)
+    check_and_create_inter(config)
+    check_and_create_item(config)
 
     # Settings for Ray Tune
     ray.init()
     scheduler = get_scheduler()
-    reporter = CLIReporter(metric_columns=["recall"])
+    reporter = CLIReporter(metric_columns=["recall"], print_intermediate_tables=True, max_report_frequency=600)
 
     # Running ray tune
     tuner = tune.run(
