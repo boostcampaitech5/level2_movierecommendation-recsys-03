@@ -23,17 +23,20 @@ def get_timestamp(date_format: str = "%d_%H%M%S") -> str:
     return timestamp.strftime(date_format)
 
 
-def init_wandb(config) -> None:
+def login_wandb(config) -> None:
     dotenv.load_dotenv()
     WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
     wandb.login(key=WANDB_API_KEY)
 
-    run = wandb.init(
+
+def init_wandb(config, k=None, group=None) -> None:
+    wandb.init(
         project=config.wandb.project + "AutoEncoder",
         entity=config.wandb.entity,
-        name=config.wandb.name,
+        name=config.wandb.name + f"_fold_{k}" if k is not None else config.wandb.name,
+        tags=[config.model.model_name],
+        group=group,
     )
-    run.tags = [config.model.model_name]
 
 
 def generate_submission_file(config, preds: np.ndarray, idx2item: dict):
@@ -51,9 +54,16 @@ def generate_submission_file(config, preds: np.ndarray, idx2item: dict):
     sub_df.loc[:, "item"] = items
     sub_df["item"] = sub_df["item"].apply(lambda x: idx2item[x])
     sub_df.to_csv(sub_path, index=False)
-    wandb.save(sub_path)
 
 
 def _check_dir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+
+
+def predict_topk(x_hat: np.ndarray, k: int) -> np.ndarray:
+    ind = np.argpartition(x_hat, -k)[:, -k:]
+    arr_ind = x_hat[np.arange(len(x_hat))[:, None], ind]
+    arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(x_hat)), ::-1]
+    pred_topk = ind[np.arange(len(x_hat))[:, None], arr_ind_argsort]
+    return pred_topk
