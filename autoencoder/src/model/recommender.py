@@ -54,9 +54,8 @@ class Recommender(L.LightningModule):
         x = x.cpu().numpy()
         x_hat = x_hat.cpu().numpy()
 
-        x_hat = self._remove_rated_item(x_hat, x)
-        pred_topk = self._predict_topk(x_hat, 10)
-        return pred_topk
+        pred = self._remove_rated_item(x_hat, x)
+        return pred
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.wd)
@@ -109,13 +108,6 @@ class Recommender(L.LightningModule):
 
         update_count += 1
         return anneal, update_count
-
-    def _predict_topk(self, x_hat: np.ndarray, k: int) -> np.ndarray:
-        ind = np.argpartition(x_hat, -k)[:, -k:]
-        arr_ind = x_hat[np.arange(len(x_hat))[:, None], ind]
-        arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(x_hat)), ::-1]
-        pred_topk = ind[np.arange(len(x_hat))[:, None], arr_ind_argsort]
-        return pred_topk
 
     def _recall_at_k_(self, target: np.ndarray, x_hat: np.ndarray, k: int) -> np.ndarray:
         target = target > 0

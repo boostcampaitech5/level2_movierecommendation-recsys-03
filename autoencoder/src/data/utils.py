@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
@@ -49,7 +49,7 @@ def get_user_seqs(rating_df: pd.DataFrame):
     )
 
 
-def train_val_test_split(sparse_matrix: csr_matrix, user_seq: list, ratio_list=[0.8, 0.1, 0.1]) -> Tuple[csr_matrix, list]:
+def train_val_test_split(sparse_matrix: csr_matrix, user_seq: list, ratio_list=[0.8, 0.1, 0.1], k: Optional[int] = None) -> Tuple[csr_matrix, list]:
     num_users = sparse_matrix.shape[0]
 
     train_cut = int(num_users * ratio_list[0])
@@ -133,3 +133,33 @@ def input_target_mix_leave_n_out_split(sparse_matrix: csr_matrix, user_seq: list
     assert input_matrix.shape == target_matrix.shape
 
     return csr_matrix(input_matrix), csr_matrix(target_matrix)
+
+
+def kfold_train_val_test_split(sparse_matrix: csr_matrix, user_seq: list, k: int, num_folds=5) -> Tuple[csr_matrix, list]:
+    numpy_matrix = sparse_matrix.toarray()
+    num_users = sparse_matrix.shape[0]
+    num_items = sparse_matrix.shape[1]
+    fold_size = num_users // num_folds
+
+    ratio_list = [1.0 - 1.0 / num_folds, 0.5 / num_folds, 0.5 / num_folds]
+    train_cut = int(num_users * ratio_list[0])
+    val_cut = train_cut + int(num_users * ratio_list[1])
+
+    numpy_matrix = numpy_matrix.reshape(num_folds, num_users // num_folds, num_items)
+    numpy_matrix[[4, k]] = numpy_matrix[[k, 4]]
+    numpy_matrix = numpy_matrix.reshape(num_users, num_items)
+
+    user_seq[4 * fold_size : 5 * fold_size], user_seq[k * fold_size : (k + 1) * fold_size] = (
+        user_seq[k * fold_size : (k + 1) * fold_size],
+        user_seq[4 * fold_size : 5 * fold_size],
+    )
+
+    train_matrix = numpy_matrix[:train_cut]
+    val_matrix = numpy_matrix[train_cut:val_cut]
+    test_matrix = numpy_matrix[val_cut:]
+
+    train_seq = user_seq[:train_cut]
+    val_seq = user_seq[train_cut:val_cut]
+    test_seq = user_seq[val_cut:]
+
+    return (csr_matrix(train_matrix), csr_matrix(val_matrix), csr_matrix(test_matrix), train_seq, val_seq, test_seq)

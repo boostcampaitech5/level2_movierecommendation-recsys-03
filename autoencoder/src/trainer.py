@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -5,13 +6,13 @@ from lightning.pytorch.loggers import WandbLogger
 
 
 class Trainer:
-    def __init__(self, config, model: L.LightningModule, datamodule: L.LightningDataModule):
+    def __init__(self, config, model: L.LightningModule, datamodule: L.LightningDataModule, k: Optional[int] = None):
         self.config = config
         self.accelerator = config.trainer.accelerator
         self.devices = config.trainer.devices
         self.max_epochs = config.trainer.max_epochs
         self.output_dir = config.path.output_dir
-        self.name = config.wandb.name
+        self.name = config.wandb.name + f"_fold_{k}" if k is not None else config.wandb.name
         self.project = config.wandb.project
 
         self.model = model
