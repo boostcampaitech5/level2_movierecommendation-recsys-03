@@ -19,7 +19,7 @@ def main(config) -> None:
     set_seed(config.seed)
     config.timestamp = get_timestamp()
     config.wandb.name = f"work-{config.timestamp}"
-    login_wandb(config)
+    login_wandb()
 
     if config.trainer.strategy == "holdout":
         init_wandb(config)
@@ -34,7 +34,7 @@ def main(config) -> None:
 
         wandb.finish()
 
-        topk_pred = [predict_topk(pred[i], k=10) for i in range(len(pred))]
+        topk_pred = predict_topk(np.concatenate(pred), 10)
         generate_submission_file(config, topk_pred, datamodule.idx2item)
 
     elif config.trainer.strategy == "kfold":
