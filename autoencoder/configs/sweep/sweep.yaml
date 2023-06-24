@@ -1,0 +1,16 @@
+project: MovieRec_AutoEncoder
+entity: recsys01
+program: main.py
+method: grid
+metric:
+  goal: maximize
+  name: val_recall@10
+parameters:
+  model.act:
+    values: [relu, leakyrelu, gelu, swish]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args_no_hyphens}
