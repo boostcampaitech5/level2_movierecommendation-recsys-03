@@ -86,7 +86,7 @@ class Recommender(L.LightningModule):
         return output
 
     def _on_shared_eval_epoch_end(self, prefix: str):
-        outputs: List[Dict[torch.Tensor, np.ndarray]] = self.shared_eval_step_outputs
+        outputs: list[dict[torch.Tensor, np.ndarray]] = self.shared_eval_step_outputs
 
         avg_loss = torch.stack([output["loss"] for output in outputs]).mean()
         avg_score = np.concatenate([output["score"] for output in outputs]).mean()

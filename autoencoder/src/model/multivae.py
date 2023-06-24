@@ -8,13 +8,11 @@ class MultiVAE(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.act: torch.Tensor = ACT2FN[config.model.act]
-        self.p_dims: list = config.model.p_dims  # [200, 600, 6807]
-        self.q_dims: list = self.p_dims[::-1]  # [6807, 600, 200]
+        self.p_dims: list = config.model.p_dims
+        self.q_dims: list = self.p_dims[::-1]
 
-        # encoder
-        temp_q_dims = self.q_dims[:-1] + [self.q_dims[-1] * 2]  # [6807, 600, 200*2]
+        temp_q_dims = self.q_dims[:-1] + [self.q_dims[-1] * 2]
         self.q_layers = nn.ModuleList([nn.Linear(d_in, d_out) for d_in, d_out in zip(temp_q_dims[:-1], temp_q_dims[1:])])
-        # decoder
         self.p_layers = nn.ModuleList([nn.Linear(d_in, d_out) for d_in, d_out in zip(self.p_dims[:-1], self.p_dims[1:])])
 
         self.dropout = nn.Dropout(config.model.dropout)
@@ -34,8 +32,8 @@ class MultiVAE(nn.Module):
             if i != len(self.q_layers) - 1:
                 h = self.act(h)
             else:
-                mu = h[:, : self.q_dims[-1]]  # h [B, 1, 200] h[:,:,:200]
-                logvar = h[:, self.q_dims[-1] :]  # h [B, 1, 200]
+                mu = h[:, : self.q_dims[-1]]
+                logvar = h[:, self.q_dims[-1] :]
         return mu, logvar
 
     def reparameterize(self, mu, logvar):

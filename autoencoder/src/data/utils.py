@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 
 
-def generate_rating_matrix(user_seq, num_users, num_items):
+def generate_rating_matrix(user_seq: list, num_users: int, num_items: int) -> csr_matrix:
     row = []
     col = []
     data = []
@@ -22,7 +22,7 @@ def generate_rating_matrix(user_seq, num_users, num_items):
     return rating_matrix
 
 
-def get_user_seqs(rating_df: pd.DataFrame):
+def get_user_seqs(rating_df: pd.DataFrame) -> Tuple[list, int, csr_matrix, dict]:
     item2idx = {v: k for k, v in enumerate(rating_df["item"].unique())}
     idx2item = {v: k for k, v in item2idx.items()}
 

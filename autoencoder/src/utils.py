@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 import torch
 import wandb
@@ -23,13 +24,13 @@ def get_timestamp(date_format: str = "%d_%H%M%S") -> str:
     return timestamp.strftime(date_format)
 
 
-def login_wandb(config) -> None:
+def login_wandb() -> None:
     dotenv.load_dotenv()
     WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
     wandb.login(key=WANDB_API_KEY)
 
 
-def init_wandb(config, k=None, group=None) -> None:
+def init_wandb(config, k: Optional[int] = None, group: Optional[int] = None) -> None:
     wandb.init(
         project=config.wandb.project + "AutoEncoder",
         entity=config.wandb.entity,
