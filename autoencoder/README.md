@@ -1,10 +1,10 @@
-# AutoEncoder approach
+# Autoencoder-based Colaborative Filtering
 
 ## Structure
 ```
 │
 ├── configs                  <- Hydra configs
-│   ├── data                     <- Model configs
+│   ├── data                     <- Data configs
 │   ├── model                    <- Model configs
 │   ├── path                     <- Project paths configs
 │   ├── trainer                  <- W&B configs
