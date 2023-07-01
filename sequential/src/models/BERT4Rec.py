@@ -50,7 +50,7 @@ class BERT4Rec(L.LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        _, tokens, labels, _ = batch  # predict
+        _, tokens, labels = batch  # predict
         _, out = self(tokens)
 
         out = out.view(-1, out.size(-1))
@@ -74,7 +74,7 @@ class BERT4Rec(L.LightningModule):
         self.training_step_outputs.clear()
 
     def validation_step(self, batch, batch_idx):
-        user_ids, tokens, _, answers = batch  # predict
+        user_ids, tokens, answers = batch  # predict
         seq_output, _ = self(tokens)
 
         seq_output = seq_output[:, -1, :]
@@ -110,7 +110,7 @@ class BERT4Rec(L.LightningModule):
         self.answer_list.clear()
 
     def test_step(self, batch, batch_idx):
-        user_ids, tokens, _, answers = batch  # predict
+        user_ids, tokens, answers = batch  # predict
         seq_output, _ = self(tokens)
 
         seq_output = seq_output[:, -1, :]
@@ -146,7 +146,7 @@ class BERT4Rec(L.LightningModule):
         self.answer_list.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        user_ids, tokens, _, _ = batch  # predict
+        user_ids, tokens, _ = batch  # predict
         seq_output, _ = self(tokens)
         seq_output = seq_output[:, -1, :]
 

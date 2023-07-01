@@ -282,14 +282,10 @@ class SASRecDataset(Dataset):
         return len(self.data["input_ids"])
 
 
-class BERT4RecDataset(Dataset):
+class BERT4RecValidDataset(Dataset):
     def __init__(self, config: Config, data: dict):
         self.config = config
         self.data = data
-        self.max_len = self.config.data.max_seq_length
-        self.mask_p = self.config.data.mask_p
-        self.item_size = self.config.data.item_size
-        self.mask_id = self.config.data.mask_id
         self.max_len = self.config.data.max_seq_length
         self.tensors = self.__prepare_data(data)
 
@@ -298,14 +294,60 @@ class BERT4RecDataset(Dataset):
 
         user_id_list = []
         tokens_list = []
-        labels_list = []
         answers_list = []
+
+        for user_id in range(user_num):
+            tokens = data["input_ids"][user_id]
+            answers = data["answers"][user_id]
+
+            tokens = tokens[-self.max_len :]
+            mask_len = self.max_len - len(tokens)
+            # zero padding
+            tokens = [0] * mask_len + tokens
+
+            user_id_list.append(user_id)
+            tokens_list.append(tokens)
+            answers_list.append(answers)
+
+        tensors = {
+            "user_ids": torch.tensor(user_id_list, dtype=torch.long),
+            "tokens": torch.tensor(tokens_list, dtype=torch.long),
+            "answers": torch.tensor(answers_list, dtype=torch.long),
+        }
+
+        return tensors
+
+    def __getitem__(self, index):
+        return (
+            self.tensors["user_ids"][index],
+            self.tensors["tokens"][index],
+            self.tensors["answers"][index],
+        )
+
+    def __len__(self):
+        return len(self.data["input_ids"])
+
+
+class BERT4RecTrainDataset(Dataset):
+    def __init__(self, config: Config, data: dict):
+        self.config = config
+        self.data = data
+        self.max_len = self.config.data.max_seq_length
+        self.mask_p = self.config.data.mask_p
+        self.mask_id = self.config.data.mask_id
+        self.tensors = self.__prepare_data(data)
+
+    def __prepare_data(self, data):
+        user_num = len(data["input_ids"])
+
+        user_id_list = []
+        tokens_list = []
+        labels_list = []
 
         for user_id in range(user_num):
             seq = data["input_ids"][user_id]
             tokens = []
             labels = []
-            answers = data["answers"][user_id]
 
             for s in seq:
                 prob = np.random.random()
@@ -336,13 +378,11 @@ class BERT4RecDataset(Dataset):
             user_id_list.append(user_id)
             tokens_list.append(tokens)
             labels_list.append(labels)
-            answers_list.append(answers)
 
         tensors = {
             "user_ids": torch.tensor(user_id_list, dtype=torch.long),
             "tokens": torch.tensor(tokens_list, dtype=torch.long),
             "labels": torch.tensor(labels_list, dtype=torch.long),
-            "answers": torch.tensor(answers_list, dtype=torch.long),
         }
 
         return tensors
@@ -352,7 +392,6 @@ class BERT4RecDataset(Dataset):
             self.tensors["user_ids"][index],
             self.tensors["tokens"][index],
             self.tensors["labels"][index],
-            self.tensors["answers"][index],
         )
 
     def __len__(self):
