@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from src.config import Config
-from src.modules import LayerNorm, Encoder
+from src.modules import LayerNorm, BERT_Encoder
 
 
 class BERT4Rec(nn.Module):
@@ -22,7 +22,7 @@ class BERT4Rec(nn.Module):
         self.dropout = nn.Dropout(self.dropout_rate)
         self.LayerNorm = LayerNorm(self.hidden_size, eps=1e-12)
 
-        self.item_encoder = Encoder(self.config)
+        self.item_encoder = BERT_Encoder(self.config)
 
         self.out = nn.Linear(self.hidden_size, self.item_size)
 
@@ -65,22 +65,22 @@ class BERT4Rec(nn.Module):
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
-    def forward(self, log_seqs):
+    def forward(self, log_seq):
         if self.cuda_condition:
-            seqs = self.item_embeddings(torch.tensor(log_seqs, dtype=torch.long).cuda())
-            positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
-            seqs += self.position_embeddings(torch.tensor(positions, dtype=torch.long).cuda())
+            seq = self.item_embeddings(torch.tensor(log_seq, dtype=torch.long).cuda())
+            positions = np.tile(np.array(range(log_seq.shape[1])), [log_seq.shape[0], 1])
+            seq += self.position_embeddings(torch.tensor(positions, dtype=torch.long).cuda())
+            mask = torch.tensor(log_seq > 0, dtype=torch.bool).unsqueeze(1).repeat(1, log_seq.shape[1], 1).unsqueeze(1).cuda()  # mask for zero pad
+
         else:
-            seqs = self.item_embeddings(torch.tensor(log_seqs, dtype=torch.long))
-            positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
-            seqs += self.position_embeddings(torch.tensor(positions, dtype=torch.long))
+            seq = self.item_embeddings(torch.tensor(log_seq, dtype=torch.long))
+            positions = np.tile(np.array(range(log_seq.shape[1])), [log_seq.shape[0], 1])
+            seq += self.position_embeddings(torch.tensor(positions, dtype=torch.long))
+            mask = torch.tensor(log_seq > 0, dtype=torch.bool).unsqueeze(1).repeat(1, log_seq.shape[1], 1).unsqueeze(1)  # mask for zero pad
 
-        seqs = self.LayerNorm(self.dropout(seqs))
+        seq = self.LayerNorm(self.dropout(seq))
+        seq = self.item_encoder(seq, mask)
 
-        mask = torch.tensor(log_seqs > 0, dtype=torch.bool).unsqueeze(1).repeat(1, log_seqs.shape[1], 1).unsqueeze(1)  # mask for zero pad
-        item_encoded_layers = self.item_encoder(seqs, mask, output_all_encoded_layers=True)
-        seqs = item_encoded_layers[-1]
+        out = self.out(seq)
 
-        out = self.out(seqs)
-
-        return seqs, out
+        return seq, out

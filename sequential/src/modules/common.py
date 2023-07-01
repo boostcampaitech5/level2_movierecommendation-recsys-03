@@ -122,14 +122,17 @@ class SelfAttention(nn.Module):
         # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
         # [batch_size heads seq_len seq_len] scores
         # [batch_size 1 1 seq_len]
+        # attention_scores = attention_scores.masked_fill(attention_mask == 0, -1e9)
         attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
+        # same attn_dist
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
         # This is actually dropping out entire tokens to attend to, which might
         # seem a bit unusual, but is taken from the original Transformer paper.
         # Fixme
         attention_probs = self.attn_dropout(attention_probs)
+        # same output
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
@@ -188,12 +191,105 @@ class Encoder(nn.Module):
         layer = Layer(config)
         self.layer = nn.ModuleList([copy.deepcopy(layer) for _ in range(config.model.num_hidden_layers)])
 
-    def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):
-        all_encoder_layers = []
+    def forward(self, hidden_states, attention_mask):
         for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
-            if output_all_encoded_layers:
-                all_encoder_layers.append(hidden_states)
-        if not output_all_encoded_layers:
-            all_encoder_layers.append(hidden_states)
-        return all_encoder_layers
+
+        return hidden_states
+
+
+class ScaledDotProductAttention(nn.Module):
+    def __init__(self, config: Config):
+        super(ScaledDotProductAttention, self).__init__()
+        self.hidden_size = config.model.hidden_size
+        self.dropout = nn.Dropout(config.model.hidden_dropout_prob)  # dropout rate
+
+    def forward(self, Q, K, V, mask):
+        attn_score = torch.matmul(Q, K.transpose(2, 3)) / math.sqrt(self.hidden_size)
+        attn_score = attn_score.masked_fill(mask == 0, -1e9)  # 유사도가 0인 지점은 -infinity로 보내 softmax 결과가 0이 되도록 함
+        attn_dist = self.dropout(F.softmax(attn_score, dim=-1))  # attention distribution
+        output = torch.matmul(attn_dist, V)  # dim of output : batchSize x num_head x seqLen x hidden_units
+        return output, attn_dist
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, config: Config):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = config.model.num_attention_heads
+        self.hidden_size = config.model.hidden_size
+        self.dropout_rate = config.model.hidden_dropout_prob
+        # query, key, value, output 생성을 위해 Linear 모델 생성
+        self.W_Q = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.W_K = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.W_V = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.W_O = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+
+        self.attention = ScaledDotProductAttention(config)  # scaled dot product attention module을 사용하여 attention 계산
+        self.dropout = nn.Dropout(self.dropout_rate)  # dropout rate
+        self.layerNorm = nn.LayerNorm(self.hidden_size, 1e-6)  # layer normalization
+
+    def forward(self, enc, mask):
+        residual = enc  # residual connection을 위해 residual 부분을 저장
+        batch_size, seqlen = enc.size(0), enc.size(1)
+
+        # Query, Key, Value를 (num_head)개의 Head로 나누어 각기 다른 Linear projection을 통과시킴
+        Q = self.W_Q(enc).view(batch_size, seqlen, self.num_heads, self.hidden_size // self.num_heads)
+        K = self.W_K(enc).view(batch_size, seqlen, self.num_heads, self.hidden_size // self.num_heads)
+        V = self.W_V(enc).view(batch_size, seqlen, self.num_heads, self.hidden_size // self.num_heads)
+
+        # Head별로 각기 다른 attention이 가능하도록 Transpose 후 각각 attention에 통과시킴
+        Q, K, V = Q.transpose(1, 2), K.transpose(1, 2), V.transpose(1, 2)
+        output, attn_dist = self.attention(Q, K, V, mask)
+
+        # 다시 Transpose한 후 모든 head들의 attention 결과를 합칩니다.
+        output = output.transpose(1, 2).contiguous()
+        output = output.view(batch_size, seqlen, -1)
+
+        # Linear Projection, Dropout, Residual sum, and Layer Normalization
+        output = self.layerNorm(self.dropout(self.W_O(output)) + residual)
+        return output, attn_dist
+
+
+class PositionwiseFeedForward(nn.Module):
+    def __init__(self, config: Config):
+        super(PositionwiseFeedForward, self).__init__()
+        self.hidden_size = config.model.hidden_size
+        self.dropout_rate = config.model.hidden_dropout_prob
+        # SASRec과의 dimension 차이가 있습니다.
+        self.W_1 = nn.Linear(self.hidden_size, 4 * self.hidden_size)
+        self.W_2 = nn.Linear(4 * self.hidden_size, self.hidden_size)
+        self.dropout = nn.Dropout(self.dropout_rate)
+        self.layerNorm = nn.LayerNorm(self.hidden_size, 1e-6)  # layer normalization
+
+    def forward(self, x):
+        residual = x
+        output = self.W_2(F.gelu(self.dropout(self.W_1(x))))  # activation: relu -> gelu
+        output = self.layerNorm(self.dropout(output) + residual)
+        return output
+
+
+class BERT4RecBlock(nn.Module):
+    def __init__(self, config: Config):
+        super(BERT4RecBlock, self).__init__()
+        self.num_heads = config.model.num_attention_heads
+        self.hidden_size = config.model.hidden_size
+        self.dropout_rate = config.model.hidden_dropout_prob
+        self.attention = MultiHeadAttention(config)
+        self.pointwise_feedforward = PositionwiseFeedForward(config)
+
+    def forward(self, input_enc, mask):
+        output_enc, attn_dist = self.attention(input_enc, mask)
+        output_enc = self.pointwise_feedforward(output_enc)
+        return output_enc, attn_dist
+
+
+class BERT_Encoder(nn.Module):
+    def __init__(self, config: Config):
+        super(BERT_Encoder, self).__init__()
+        self.blocks = nn.ModuleList([BERT4RecBlock(config) for _ in range(config.model.num_hidden_layers)])
+
+    def forward(self, hidden_states, mask, output_all_encoded_layers=False):
+        for block in self.blocks:
+            hidden_states, attn_dist = block(hidden_states, mask)
+
+        return hidden_states
