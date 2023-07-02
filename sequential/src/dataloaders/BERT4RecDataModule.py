@@ -2,7 +2,7 @@ import lightning as L
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from src.config import Config
 from src.utils import get_user_seqs, get_user_seqs_long
-from src.datasets import BERT4RecDataset
+from src.datasets import BERT4RecTrainDataset, BERT4RecValidDataset
 from src.dataloaders.common import KFoldDataModule, KFoldDataModuleContainer
 
 
@@ -65,22 +65,22 @@ class BERT4RecDataModule(L.LightningDataModule):
             self.submission_data = {"input_ids": [seq[:] + [self.mask_id] for seq in self.user_seq], "answers": [[0] for _ in range(self.n_user)]}
 
     def train_dataloader(self) -> DataLoader:
-        train_dataset = BERT4RecDataset(config=self.config, data=self.train_data)
+        train_dataset = BERT4RecTrainDataset(config=self.config, data=self.train_data)
         train_sampler = RandomSampler(train_dataset)
         return DataLoader(train_dataset, sampler=train_sampler, batch_size=self.batch_size, num_workers=0)
 
     def val_dataloader(self) -> DataLoader:
-        valid_dataset = BERT4RecDataset(config=self.config, data=self.valid_data)
+        valid_dataset = BERT4RecValidDataset(config=self.config, data=self.valid_data)
         valid_sampler = SequentialSampler(valid_dataset)
         return DataLoader(valid_dataset, sampler=valid_sampler, batch_size=self.batch_size, num_workers=0)
 
     def test_dataloader(self) -> DataLoader:
-        test_dataset = BERT4RecDataset(config=self.config, data=self.test_data)
+        test_dataset = BERT4RecValidDataset(config=self.config, data=self.test_data)
         test_sampler = SequentialSampler(test_dataset)
         return DataLoader(test_dataset, sampler=test_sampler, batch_size=self.batch_size, num_workers=0)
 
     def predict_dataloader(self) -> DataLoader:
-        submission_dataset = BERT4RecDataset(config=self.config, data=self.submission_data)
+        submission_dataset = BERT4RecValidDataset(config=self.config, data=self.submission_data)
         submission_sampler = SequentialSampler(submission_dataset)
         return DataLoader(submission_dataset, sampler=submission_sampler, batch_size=self.batch_size, num_workers=0)
 
@@ -119,7 +119,7 @@ class BERT4RecKFoldDataModule(BERT4RecDataModule, KFoldDataModule):
             }
 
             self.train_data = self.__split_data(self.train_data, train_idx)
-            self.valid_data = self.train_data
+            self.valid_data = self.train_data.copy()
 
             self.valid_data["input_ids"] = [seq[:] + [self.mask_id] for seq in self.valid_data["input_ids"]]
 

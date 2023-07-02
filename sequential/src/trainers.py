@@ -15,6 +15,7 @@ class HoldoutTrainer:
         self.config = config
         self.model = model
         self.data_module = data_module
+        self.is_cv = self.config.trainer.cv
 
         self.device = torch.device("cuda" if config.cuda_condition else "cpu")
 
@@ -40,7 +41,16 @@ class HoldoutTrainer:
         # inference
         preds = self.trainer.predict(self.model, datamodule=self.data_module)
 
-        return torch.concatenate(preds)
+        if self.is_cv:
+            return torch.concatenate(preds)
+        else:
+            rating_pred = np.array(torch.concatenate(preds))
+            ind = np.argpartition(rating_pred, -10)[:, -10:]
+            arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
+            arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1]
+            pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
+
+            return pred_list
 
     def test(self):
         self.trainer.test(self.model, datamodule=self.data_module)

@@ -94,9 +94,7 @@ class S3Rec(nn.Module):
         seq_mask = (masked_item_seq == 0).float() * -1e8
         seq_mask = torch.unsqueeze(torch.unsqueeze(seq_mask, 1), 1)
 
-        encoded_layers = self.base_module.item_encoder(seq_emb, seq_mask, output_all_encoded_layers=True)
-        # [B L H]
-        seq_output = encoded_layers[-1]
+        seq_output = self.base_module.item_encoder(seq_emb, seq_mask)
 
         # AAP + MAP
         aap_scores, map_scores = {}, {}
@@ -118,23 +116,23 @@ class S3Rec(nn.Module):
         segment_context = self.base_module.make_seq_embedding(masked_segment_seq)
         segment_mask = (masked_segment_seq == 0).float() * -1e8
         segment_mask = torch.unsqueeze(torch.unsqueeze(segment_mask, 1), 1)
-        segment_encoded_layers = self.base_module.item_encoder(segment_context, segment_mask, output_all_encoded_layers=True)
+        segment_seq_output = self.base_module.item_encoder(segment_context, segment_mask)
 
         # take the last position hidden as the context
-        segment_context = segment_encoded_layers[-1][:, -1, :]  # [B H]
+        segment_context = segment_seq_output[:, -1, :]  # [B H]
         # pos_segment
         pos_segment_emb = self.base_module.make_seq_embedding(pos_segment)
         pos_segment_mask = (pos_segment == 0).float() * -1e8
         pos_segment_mask = torch.unsqueeze(torch.unsqueeze(pos_segment_mask, 1), 1)
-        pos_segment_encoded_layers = self.base_module.item_encoder(pos_segment_emb, pos_segment_mask, output_all_encoded_layers=True)
-        pos_segment_emb = pos_segment_encoded_layers[-1][:, -1, :]
+        pos_segment_seq_output = self.base_module.item_encoder(pos_segment_emb, pos_segment_mask)
+        pos_segment_emb = pos_segment_seq_output[:, -1, :]
 
         # neg_segment
         neg_segment_emb = self.base_module.make_seq_embedding(neg_segment)
         neg_segment_mask = (neg_segment == 0).float() * -1e8
         neg_segment_mask = torch.unsqueeze(torch.unsqueeze(neg_segment_mask, 1), 1)
-        neg_segment_encoded_layers = self.base_module.item_encoder(neg_segment_emb, neg_segment_mask, output_all_encoded_layers=True)
-        neg_segment_emb = neg_segment_encoded_layers[-1][:, -1, :]  # [B H]
+        neg_segment_seq_output = self.base_module.item_encoder(neg_segment_emb, neg_segment_mask)
+        neg_segment_emb = neg_segment_seq_output[:, -1, :]  # [B H]
 
         pos_segment_score = self.segment_prediction(segment_context, pos_segment_emb)
         neg_segment_score = self.segment_prediction(segment_context, neg_segment_emb)

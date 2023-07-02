@@ -78,7 +78,6 @@ class SASRec(nn.Module):
 
         seq_emb = self.make_seq_embedding(input_ids)
 
-        item_encoded_layers = self.item_encoder(seq_emb, extended_attention_mask, output_all_encoded_layers=True)
+        seq_output = self.item_encoder(seq_emb, extended_attention_mask)
 
-        seq_output = item_encoded_layers[-1]
         return seq_output
