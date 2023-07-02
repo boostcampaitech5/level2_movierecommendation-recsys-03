@@ -1,7 +1,7 @@
 # Sequential approach
 
 ## 🧩 Structure
-```bash
+```
 │
 ├── configs                    <- Hydra configs
 │   ├── data                       <- Data configs

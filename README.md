@@ -66,6 +66,15 @@
 pip install pre-commit
 pre-commit install
 ```
+### [Autoencoder Baseline](./autoencoder/README.md)
+
+### [EASE Baseline](./EASE/README.md)
+
+### [Recbole Baseline](./recbole/README.md)
+
+### [Sequential Baseline](./sequential/README.md)
+
+### [Tabular approach](./tabular/README.md)
 
 ## Further Reading
 - [랩업리포트](./docs/MovieRec_Team3_WrapUp_Report.pdf)
