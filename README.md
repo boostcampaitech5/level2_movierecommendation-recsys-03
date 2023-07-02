@@ -74,7 +74,7 @@ pre-commit install
 
 ### [Sequential Baseline](./sequential/README.md)
 
-### [Tabular approach](./tabular/README.md)
+### [Tabular Baseline](./tabular/README.md)
 
 ## Further Reading
 - [랩업리포트](./docs/MovieRec_Team3_WrapUp_Report.pdf)
